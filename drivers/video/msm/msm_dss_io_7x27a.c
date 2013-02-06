@@ -301,52 +301,8 @@ void mipi_dsi_phy_init(int panel_ndx, struct msm_panel_info const *panel_info,
 	wmb();
 }
 
-void cont_splash_clk_ctrl(int enable)
+void cont_splash_clk_ctrl(void)
 {
-	static int cont_splash_clks_enabled;
-	if (enable && !cont_splash_clks_enabled) {
-		clk_prepare_enable(dsi_ref_clk);
-		clk_prepare_enable(mdp_dsi_pclk);
-		clk_prepare_enable(dsi_byte_div_clk);
-		clk_prepare_enable(dsi_esc_clk);
-		clk_prepare_enable(dsi_pixel_clk);
-		clk_prepare_enable(dsi_clk);
-		cont_splash_clks_enabled = 1;
-	} else if (!enable && cont_splash_clks_enabled) {
-		clk_disable_unprepare(dsi_clk);
-		clk_disable_unprepare(dsi_pixel_clk);
-		clk_disable_unprepare(dsi_esc_clk);
-		clk_disable_unprepare(dsi_byte_div_clk);
-		clk_disable_unprepare(mdp_dsi_pclk);
-		clk_disable_unprepare(dsi_ref_clk);
-		cont_splash_clks_enabled = 0;
-	}
-}
-
-void mipi_dsi_prepare_clocks(void)
-{
-	clk_prepare(dsi_ref_clk);
-	clk_prepare(ahb_m_clk);
-	clk_prepare(ahb_s_clk);
-	clk_prepare(ebi1_dsi_clk);
-	clk_prepare(mdp_dsi_pclk);
-	clk_prepare(dsi_byte_div_clk);
-	clk_prepare(dsi_esc_clk);
-	clk_prepare(dsi_clk);
-	clk_prepare(dsi_pixel_clk);
-}
-
-void mipi_dsi_unprepare_clocks(void)
-{
-	clk_unprepare(dsi_esc_clk);
-	clk_unprepare(dsi_byte_div_clk);
-	clk_unprepare(mdp_dsi_pclk);
-	clk_unprepare(ebi1_dsi_clk);
-	clk_unprepare(ahb_m_clk);
-	clk_unprepare(ahb_s_clk);
-	clk_unprepare(dsi_ref_clk);
-	clk_unprepare(dsi_clk);
-	clk_unprepare(dsi_pixel_clk);
 }
 
 void mipi_dsi_ahb_ctrl(u32 enable)

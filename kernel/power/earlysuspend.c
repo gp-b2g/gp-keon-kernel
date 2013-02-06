@@ -28,6 +28,7 @@ enum {
 	DEBUG_VERBOSE = 1U << 3,
 };
 static int debug_mask = DEBUG_USER_STATE;
+bool early_sleep_state = 1;
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 void set_sampling_rate(int screen_on);
 void set_up_threshold(int screen_on);
@@ -95,6 +96,7 @@ static void early_suspend(struct work_struct *work)
 
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("early_suspend: call handlers\n");
+	early_sleep_state = 0;
 	list_for_each_entry(pos, &early_suspend_handlers, link) {
 		if (pos->suspend != NULL) {
 			if (debug_mask & DEBUG_VERBOSE)
@@ -152,6 +154,7 @@ static void late_resume(struct work_struct *work)
 			pos->resume(pos);
 		}
 	}
+	early_sleep_state = 1;
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("late_resume: done\n");
 abort:

@@ -46,11 +46,11 @@ static int mipi_cmd_ILI9487_hvga_pt_init(void)
 	pinfo.pdest = DISPLAY_1;
 	pinfo.wait_cycle = 0;
 	pinfo.bpp = 24;
-	pinfo.lcdc.h_back_porch = 100;
-	pinfo.lcdc.h_front_porch = 100;
+	pinfo.lcdc.h_back_porch = 20;
+	pinfo.lcdc.h_front_porch = 40;
 	pinfo.lcdc.h_pulse_width = 1;
-	pinfo.lcdc.v_back_porch = 20;
-	pinfo.lcdc.v_front_porch = 20;
+	pinfo.lcdc.v_back_porch = 8;
+	pinfo.lcdc.v_front_porch = 8;
 	pinfo.lcdc.v_pulse_width = 1;
 
 	pinfo.lcdc.border_clr = 0;	/* blk */
@@ -64,18 +64,18 @@ static int mipi_cmd_ILI9487_hvga_pt_init(void)
 
 	pinfo.lcd.vsync_enable = TRUE;
 	pinfo.lcd.hw_vsync_mode = TRUE;
-	pinfo.lcd.refx100 = 6200; /* adjust refx100 to prevent tearing */
+	
+	pinfo.lcd.refx100 = 6100; /* adjust refx100 to prevent tearing */
 
 	pinfo.mipi.mode = DSI_CMD_MODE;
 	pinfo.mipi.dst_format = DSI_CMD_DST_FORMAT_RGB888;
 	pinfo.mipi.vc = 0;
 	pinfo.mipi.rgb_swap = DSI_RGB_SWAP_RGB;
 	pinfo.mipi.data_lane0 = TRUE;
-	pinfo.mipi.data_lane1 = TRUE;
-	pinfo.mipi.t_clk_post = 0x20;
-	pinfo.mipi.t_clk_pre = 0x2F;
+	pinfo.mipi.t_clk_post = 0x21;
+	pinfo.mipi.t_clk_pre = 0x24;
 	pinfo.mipi.stream = 0; /* dma_p */
-	pinfo.mipi.mdp_trigger = DSI_CMD_TRIGGER_SW_TE;
+	pinfo.mipi.mdp_trigger = DSI_CMD_TRIGGER_SW;
 	pinfo.mipi.dma_trigger = DSI_CMD_TRIGGER_SW;
 	pinfo.mipi.te_sel = 1; /* TE from vsync gpio */
 	pinfo.mipi.interleave_max = 1;
@@ -88,7 +88,7 @@ static int mipi_cmd_ILI9487_hvga_pt_init(void)
 	pinfo.mipi.dlane_swap = 0x01;
 
 	ret = mipi_ILI9487_device_register(&pinfo, MIPI_DSI_PRIM,
-						MIPI_DSI_PANEL_QHD_PT);
+						MIPI_DSI_PANEL_FWVGA_PT);
 	if (ret)
 		pr_err("%s: failed to register device!\n", __func__);
 

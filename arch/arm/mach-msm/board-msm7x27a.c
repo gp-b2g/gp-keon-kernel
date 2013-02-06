@@ -73,17 +73,10 @@
 #define AKM_LAYOUT         6                                                                                                                     
 #define AKM_OUTBIT         1
                              
-                             
-static struct stk31xx_platform_data stk31xx_data = {                                                                                                
-//      .als_cmd = 0x49,                                                                                                                            
+static struct stk31xx_platform_data stk31xx_data = {                                                                                                                                                                                                                       
         .als_cmd = 0x4c,                                                                                                                            
         .ps_cmd =  0x21,                                                                                                                            
         .ps_gain = 0x0D,                                                                                                                            
-#if 0
-        .transmittance = 500,                                                                                                                       
-        .ps_high_thd   = 120,                                                                                                                       
-        .ps_low_thd    = 110,                                                                                                                       
-#endif  
         .transmittance = 800,                                                                                                                       
         .ps_high_thd   = 120,                                                                                                                       
         .ps_low_thd    = 100,
@@ -91,8 +84,7 @@ static struct stk31xx_platform_data stk31xx_data = {
 };
 #ifdef CONFIG_SENSORS_AK8963                                                                                         
 static struct akm8963_platform_data akm_platform_data_8963 = {                                                                                      
-        .gpio_DRDY        = AKM_GPIO_DRDY,                                                                                                          
-//      .gpio_RST         = AKM_GPIO_RST,                                                                                                           
+        .gpio_DRDY        = AKM_GPIO_DRDY,                                                                                                                                                                                                                  
         .layout           = AKM_LAYOUT,                                                                                                             
         .outbit           = AKM_OUTBIT,                                                                                                             
 };
@@ -114,7 +106,6 @@ static struct sx150x_platform_data sx150x_data[] __initdata = {
 };
 #endif
 
-
 static struct platform_device msm_wlan_ar6000_pm_device = {
 	.name           = "wlan_ar6000_pm_dev",
 	.id             = -1,
@@ -132,7 +123,7 @@ static struct i2c_board_info core_exp_i2c_info[] __initdata = {
 #endif
 #ifdef CONFIG_SENSORS_AK8963
 	{
-		I2C_BOARD_INFO("akm8963", 0x0E),
+		 I2C_BOARD_INFO("akm8963", 0x0E),
 		 .flags          = I2C_CLIENT_WAKE,
 		 .platform_data  = &akm_platform_data_8963,
 		 .irq            = MSM_GPIO_TO_INT(AKM_GPIO_DRDY),
@@ -140,9 +131,9 @@ static struct i2c_board_info core_exp_i2c_info[] __initdata = {
 #endif
 #ifdef CONFIG_STK31XX_INT_MODE
   	{
-     	        I2C_BOARD_INFO("stk_ps", 0x48),
-     		.platform_data = &stk31xx_data,
-     		.irq           = MSM_GPIO_TO_INT(PS31XX_INT),
+ 	     I2C_BOARD_INFO("stk_ps", 0x48),
+ 		.platform_data = &stk31xx_data,
+ 		.irq           = MSM_GPIO_TO_INT(PS31XX_INT),
   },
 #endif
 };
@@ -724,11 +715,6 @@ static struct resource smsc911x_resources[] = {
 		.end	= 0x90007fff,
 		.flags	= IORESOURCE_MEM,
 	},
-	[1] = {
-		.start	= MSM_GPIO_TO_INT(48),
-		.end	= MSM_GPIO_TO_INT(48),
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	},
 };
 
 static struct platform_device smsc911x_device = {
@@ -742,8 +728,6 @@ static struct platform_device smsc911x_device = {
 };
 
 static struct msm_gpio smsc911x_gpios[] = {
-	{ GPIO_CFG(48, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_6MA),
-							 "smsc911x_irq"  },
 	{ GPIO_CFG(49, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_6MA),
 							 "eth_fifo_sel" },
 };
@@ -949,13 +933,11 @@ static struct msm_panel_common_pdata mdp_pdata = {
 	.mdp_rev = MDP_REV_303,
 };
 
-// Cellon modify start, Zepeng Wu, 2013/01/07, for LCD
-#ifdef CONFIG_FB_MSM
 
+#ifdef CONFIG_FB_MSM
+#define GPIO_LCDC_BRDG_PD	3
 #define GPIO_LCDC_BRDG_RESET_N	4
 #define GPIO_LCDC_BL_EN	96
-#define GPIO_LCDC_BRDG_PD	97
-#define GPIO_LCDC_ID	124
 
 #define LCDC_RESET_PHYS		0x90008014
 
@@ -965,10 +947,6 @@ static unsigned mipi_dsi_gpio[] = {
 	GPIO_CFG(GPIO_LCDC_BRDG_RESET_N, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,
 		GPIO_CFG_2MA),       /* LCDC_BRDG_RESET_N */
 	GPIO_CFG(GPIO_LCDC_BRDG_PD, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,
-		GPIO_CFG_2MA),       /* LCDC_BRDG_RESET_N */
-	GPIO_CFG(GPIO_LCDC_BL_EN, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,
-		GPIO_CFG_2MA),       /* LCDC_BRDG_RESET_N */
-	GPIO_CFG(GPIO_LCDC_ID, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP,
 		GPIO_CFG_2MA),       /* LCDC_BRDG_RESET_N */
 };
 
@@ -1017,23 +995,9 @@ static int msm_fb_dsi_client_reset(void)
 		pr_err("Failed to enable LCDC Bridge pd enable\n");
 		goto gpio_error2;
 	}
-
-	rc = gpio_tlmm_config(mipi_dsi_gpio[2], GPIO_CFG_ENABLE);
-	if (rc) {
-		pr_err("Failed to enable LCDC Bridge pd enable\n");
-		goto gpio_error3;
-	}
-	rc = gpio_tlmm_config(mipi_dsi_gpio[3], GPIO_CFG_ENABLE);
-	if (rc) {
-		pr_err("Failed to enable LCDC Bridge pd enable\n");
-		goto gpio_error3;
-	}
-	
 	rc = gpio_direction_output(GPIO_LCDC_BRDG_RESET_N, 1);
 	rc |= gpio_direction_output(GPIO_LCDC_BRDG_PD, 1);
-	rc |= gpio_direction_output(GPIO_LCDC_BL_EN, 1);
-	rc |= gpio_direction_output(GPIO_LCDC_ID, 1);
-	gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 1);
+	gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 0);
 
 	if (!rc) {
 		if (machine_is_msm7x27a_surf() || machine_is_msm7625a_surf()) {
@@ -1047,12 +1011,6 @@ static int msm_fb_dsi_client_reset(void)
 	} else {
 		goto gpio_error;
 	}
-
-
-gpio_error3:
-	pr_err("Failed GPIO bridge pd\n");
-	gpio_free(GPIO_LCDC_BL_EN);
-
 gpio_error2:
 	pr_err("Failed GPIO bridge pd\n");
 	gpio_free(GPIO_LCDC_BRDG_PD);
@@ -1072,35 +1030,34 @@ static int mipi_dsi_panel_power(int on)
 	/* I2C-controlled GPIO Expander -init of the GPIOs very late */
 	if (!dsi_gpio_initialized) {
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 1);
-		
 		dsi_gpio_initialized = 1;
 	}
 
 	if (on){
-		if(dsi_gpio_initialized == 1){
-			dsi_gpio_initialized = 2;
-		}
-		else{
-			if(first_on == 0){
-				first_on = 1;
-				gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 0);
-				gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 0);
-				gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 1);
-				gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 0);
-			}
+		if(first_on == 0){
+			gpio_set_value_cansleep(GPIO_LCDC_BL_EN, 0);
+			msleep(50);			
 			gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 1);
 			gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 1);
+			msleep(20);
+			gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 0);
+			msleep(50);
+			gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 0);
+			msleep(125);
+			first_on = 1;
 		}
-	}
-	else{
+		gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 1);
+		msleep(125);
+		gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 1);
+	}else{
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 0);
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 0);
 	}	
+	msleep(100);
+
 	return rc;	
 }
 #endif
-
-// Cellon modify end, Zepeng Wu, 2013/01/07, for LCD
 
 #define MDP_303_VSYNC_GPIO 97
 
@@ -1154,135 +1111,6 @@ static void __init msm7x27a_init_ebi2(void)
 	writel(ebi2_cfg, ebi2_cfg_ptr);
 	iounmap(ebi2_cfg_ptr);
 }
-
-// Cellon modify start, Zepeng Wu, 2012/12/25, for TP
-/*
-#define ATMEL_TS_I2C_NAME "maXTouch"
-
-static struct regulator_bulk_data regs_atmel[] = {
-	{ .supply = "ldo12",  .min_uV = 2700000, .max_uV = 3300000 },
-	{ .supply = "smps3", .min_uV = 1800000, .max_uV = 1800000 },
-};
-
-#define ATMEL_TS_GPIO_IRQ 82
-
-static int atmel_ts_power_on(bool on)
-{
-	int rc = on ?
-		regulator_bulk_enable(ARRAY_SIZE(regs_atmel), regs_atmel) :
-		regulator_bulk_disable(ARRAY_SIZE(regs_atmel), regs_atmel);
-
-	if (rc)
-		pr_err("%s: could not %sable regulators: %d\n",
-				__func__, on ? "en" : "dis", rc);
-	else
-		msleep(50);
-
-	return rc;
-}
-
-static int atmel_ts_platform_init(struct i2c_client *client)
-{
-	int rc;
-	struct device *dev = &client->dev;
-
-	rc = regulator_bulk_get(dev, ARRAY_SIZE(regs_atmel), regs_atmel);
-	if (rc) {
-		dev_err(dev, "%s: could not get regulators: %d\n",
-				__func__, rc);
-		goto out;
-	}
-
-	rc = regulator_bulk_set_voltage(ARRAY_SIZE(regs_atmel), regs_atmel);
-	if (rc) {
-		dev_err(dev, "%s: could not set voltages: %d\n",
-				__func__, rc);
-		goto reg_free;
-	}
-
-	rc = gpio_tlmm_config(GPIO_CFG(ATMEL_TS_GPIO_IRQ, 0,
-				GPIO_CFG_INPUT, GPIO_CFG_PULL_UP,
-				GPIO_CFG_8MA), GPIO_CFG_ENABLE);
-	if (rc) {
-		dev_err(dev, "%s: gpio_tlmm_config for %d failed\n",
-			__func__, ATMEL_TS_GPIO_IRQ);
-		goto reg_free;
-	}
-
-	// configure touchscreen interrupt gpio 
-	rc = gpio_request(ATMEL_TS_GPIO_IRQ, "atmel_maxtouch_gpio");
-	if (rc) {
-		dev_err(dev, "%s: unable to request gpio %d\n",
-			__func__, ATMEL_TS_GPIO_IRQ);
-		goto ts_gpio_tlmm_unconfig;
-	}
-
-	rc = gpio_direction_input(ATMEL_TS_GPIO_IRQ);
-	if (rc < 0) {
-		dev_err(dev, "%s: unable to set the direction of gpio %d\n",
-			__func__, ATMEL_TS_GPIO_IRQ);
-		goto free_ts_gpio;
-	}
-	return 0;
-
-free_ts_gpio:
-	gpio_free(ATMEL_TS_GPIO_IRQ);
-ts_gpio_tlmm_unconfig:
-	gpio_tlmm_config(GPIO_CFG(ATMEL_TS_GPIO_IRQ, 0,
-				GPIO_CFG_INPUT, GPIO_CFG_NO_PULL,
-				GPIO_CFG_2MA), GPIO_CFG_DISABLE);
-reg_free:
-	regulator_bulk_free(ARRAY_SIZE(regs_atmel), regs_atmel);
-out:
-	return rc;
-}
-
-static int atmel_ts_platform_exit(struct i2c_client *client)
-{
-	gpio_free(ATMEL_TS_GPIO_IRQ);
-	gpio_tlmm_config(GPIO_CFG(ATMEL_TS_GPIO_IRQ, 0,
-				GPIO_CFG_INPUT, GPIO_CFG_NO_PULL,
-				GPIO_CFG_2MA), GPIO_CFG_DISABLE);
-	regulator_bulk_free(ARRAY_SIZE(regs_atmel), regs_atmel);
-	return 0;
-}
-
-static u8 atmel_ts_read_chg(void)
-{
-	return gpio_get_value(ATMEL_TS_GPIO_IRQ);
-}
-
-static u8 atmel_ts_valid_interrupt(void)
-{
-	return !atmel_ts_read_chg();
-}
-
-#define ATMEL_X_OFFSET 13
-#define ATMEL_Y_OFFSET 0
-
-static struct maxtouch_platform_data atmel_ts_pdata = {
-	.numtouch = 4,
-	.init_platform_hw = atmel_ts_platform_init,
-	.exit_platform_hw = atmel_ts_platform_exit,
-	.power_on = atmel_ts_power_on,
-	.display_res_x = 480,
-	.display_res_y = 864,
-	.min_x = ATMEL_X_OFFSET,
-	.max_x = (505 - ATMEL_X_OFFSET),
-	.min_y = ATMEL_Y_OFFSET,
-	.max_y = (863 - ATMEL_Y_OFFSET),
-	.valid_interrupt = atmel_ts_valid_interrupt,
-	.read_chg = atmel_ts_read_chg,
-};
-
-static struct i2c_board_info atmel_ts_i2c_info[] __initdata = {
-	{
-		I2C_BOARD_INFO(ATMEL_TS_I2C_NAME, 0x4a),
-		.platform_data = &atmel_ts_pdata,
-		.irq = MSM_GPIO_TO_INT(ATMEL_TS_GPIO_IRQ),
-	},
-};
-*/
 
 #ifdef CONFIG_TOUCHSCREEN_EKTF2K
 #define  EKTF2K_TS_INTERRUPT_GPIO 82
@@ -1422,7 +1250,6 @@ static void __init msm7627a_rumi3_init(void)
 			ARRAY_SIZE(rumi_sim_devices));
 }
 
-#define LED_GPIO_PDM		96
 #define UART1DM_RX_GPIO		45
 
 #if defined(CONFIG_BT) && defined(CONFIG_MARIMBA_CORE)
@@ -1438,11 +1265,11 @@ static void msm7x27a_ar6000_io_init(void)
 {
 	gpio_tlmm_config(GPIO_CFG(39, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN,
 				GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-	gpio_tlmm_config(GPIO_CFG(16, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP,
+	gpio_tlmm_config(GPIO_CFG(124, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP,
 				GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-	gpio_request(16, "WLAN_DEEP_SLEEP_N");	//WIFI_CHIP_PWD_L
-	gpio_direction_output(16, 0);
-	gpio_free(16);
+	gpio_request(124, "WLAN_DEEP_SLEEP_N");
+	gpio_direction_output(124, 0);
+	gpio_free(124);
 	return;
 }
 //Cellon add end, Eagle.Yin, 2012/12/25 for porting AR6005G code

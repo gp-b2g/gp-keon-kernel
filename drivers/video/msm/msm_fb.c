@@ -1668,13 +1668,13 @@ static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 			     (var->activate == FB_ACTIVATE_VBL));
 	mdp_dma_pan_update(info);
 	up(&msm_fb_pan_sem);
-//cellon,Zepeng,modify start,2013-01-24,for LCD white screen	      
+
 	if (unset_bl_level && !bl_updated) {
 		pdata = (struct msm_fb_panel_data *)mfd->pdev->
 			dev.platform_data;
 		if ((pdata) && (pdata->set_backlight)) {
 			down(&mfd->sem);
-			msleep(50);
+			msleep(30);
 			mfd->bl_level = unset_bl_level;
 			pdata->set_backlight(mfd);
 			bl_level_old = unset_bl_level;
@@ -1682,7 +1682,6 @@ static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 			bl_updated = 1;
 		}
 	}
-//cellon,Zepeng,modify end,2013-01-24,for LCD white screen      
 
 	++mfd->panel_info.frame_count;
 	return 0;

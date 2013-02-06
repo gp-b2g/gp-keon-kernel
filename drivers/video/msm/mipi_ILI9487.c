@@ -112,21 +112,21 @@ static struct dsi_cmd_desc ILI9487_cmd_display_on_cmds[] = {
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(cabc), cabc},
 	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command1), ILI9487_command1},
 	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command2), ILI9487_command2},
-	{DTYPE_DCS_LWRITE, 1, 0, 0, 10, sizeof(ILI9487_command3), ILI9487_command3},
-	{DTYPE_DCS_WRITE1, 1, 0, 0, 30, sizeof(ILI9487_command4), ILI9487_command4},
+	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command3), ILI9487_command3},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command4), ILI9487_command4},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command5), ILI9487_command5},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command6), ILI9487_command6},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command7), ILI9487_command7},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command8), ILI9487_command8},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command9), ILI9487_command9},
-	{DTYPE_DCS_LWRITE, 1, 0, 0, 10, sizeof(ILI9487_command10), ILI9487_command10},
+	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command10), ILI9487_command10},
 	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command11), ILI9487_command11},
 	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command12), ILI9487_command12},
 	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command13), ILI9487_command13},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command14), ILI9487_command14},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command15), ILI9487_command15},
 	{DTYPE_DCS_WRITE, 1, 0, 0, 200, sizeof(ILI9487_command17), ILI9487_command17},
-	{DTYPE_DCS_WRITE, 1, 0, 0, 150, sizeof(ILI9487_command18), ILI9487_command18},
+	{DTYPE_DCS_WRITE, 1, 0, 0, 120, sizeof(ILI9487_command18), ILI9487_command18},
 	{DTYPE_DCS_WRITE, 1, 0, 0, 10, sizeof(ILI9487_command19), ILI9487_command19},
 };
 
@@ -174,17 +174,30 @@ static void mipi_ILI9487_set_backlight(struct msm_fb_data_type *mfd)
 static int mipi_ILI9487_lcd_on(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
+	static int first_on = 0;
 
 	mfd = platform_get_drvdata(pdev);
 	if (!mfd)
 		return -ENODEV;
 	if (mfd->key != MFD_KEY)
 		return -EINVAL;
+	if(first_on == 0){
+		mfd->bl_level = 0;
+		mipi_ILI9487_set_backlight(mfd);
+		msleep(125);
+	}
+
 	mipi_set_tx_power_mode(1);
 	mipi_dsi_cmds_tx(mfd,&ILI9487_tx_buf,
 					 ILI9487_cmd_display_on_cmds,
 					 ARRAY_SIZE(ILI9487_cmd_display_on_cmds));
 	mipi_set_tx_power_mode(0);
+	
+	if(first_on ==0)
+	{
+		msleep(125);
+		first_on = 1;
+	}	
 
 	return 0;
 }
@@ -199,6 +212,9 @@ static int mipi_ILI9487_lcd_off(struct platform_device *pdev)
 		return -ENODEV;
 	if (mfd->key != MFD_KEY)
 		return -EINVAL;
+	mfd->bl_level = 0;
+	mipi_ILI9487_set_backlight(mfd);
+	msleep(20);
 	mipi_set_tx_power_mode(1);
 	mipi_dsi_cmds_tx(mfd,&ILI9487_tx_buf,
 		ILI9487_display_off_cmds,

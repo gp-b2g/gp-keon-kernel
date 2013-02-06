@@ -18,8 +18,6 @@
  *             auto-mapping resolution.
  */
 
-//#define ELAN_BUFFER_MODE
-
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
@@ -52,9 +50,9 @@
 #define HELLO_PKT			0x55
 #define NORMAL_PKT			0x5D
 
-#define TWO_FINGERS_PKT      0x5A
-#define FIVE_FINGERS_PKT     0x6D
-#define TEN_FINGERS_PKT	0x62
+#define TWO_FINGERS_PKT     0x5A
+#define FIVE_FINGERS_PKT    0x6D
+#define TEN_FINGERS_PKT		0x62
 
 #define RESET_PKT			0x77
 #define CALIB_PKT			0xA8
@@ -63,9 +61,8 @@
 #define SYSTEM_RESET_PIN_SR 	10
 
 //Add these Define
-#define IAP_IN_DRIVER_MODE 	1
 //For FW update set to 1 IAP_PORTION
-#define IAP_PORTION            	0
+#define IAP_PORTION            	1
 #define PAGERETRY  30
 #define IAPRESTART 5
 
@@ -964,50 +961,21 @@ static void elan_ktf2k_ts_report_data(struct i2c_client *client, uint8_t *buf)
                 }
 			} else {
 				input_report_key(idev, BTN_TOUCH, 1);
-				if(num >=2) //Multitouch
-				{
-					for (i = 0; i < finger_num; i++) {
-				  	    if ((fbits & 0x01)) {
-							elan_ktf2k_ts_parse_xy(&buf[idx], &x, &y);   
-				            x = x*320/729;
-		                    y = y*480/1152;
-							if (!((x<=0) || (y<=0) || (x>=X_RESOLUTION) || (y>=Y_RESOLUTION))) {   
-								//Solve keyboard issues
-								if(x > X_RESOLUTION)
-									x = X_RESOLUTION;
-								else if (x < 0)
-									x = 0;
-								if(y > Y_RESOLUTION)
-									y = Y_RESOLUTION;
-								else if (y < 0)
-									y = 0;		
-								input_report_abs(idev, ABS_MT_TRACKING_ID, i);
-								input_report_abs(idev, ABS_MT_TOUCH_MAJOR, 8);
-								input_report_abs(idev, ABS_MT_POSITION_X, x);
-								input_report_abs(idev, ABS_MT_POSITION_Y, y);
-								input_report_abs(idev, ABS_MT_PRESSURE, MAX_PRESSURE/2);
-								input_mt_sync(idev);
-
-								reported++;
-					  		}//end if border
-						}//end if finger status
-				  	    fbits = fbits >> 1;
-				  	    idx += 3;
-					}//end for
-				}
-				else{ //SingleTouch
+				for (i = 0; i < finger_num; i++) {
 			  	    if ((fbits & 0x01)) {
 						elan_ktf2k_ts_parse_xy(&buf[idx], &x, &y);   
 			            x = x*320/729;
 	                    y = y*480/1152;
-
 						if (!((x<=0) || (y<=0) || (x>=X_RESOLUTION) || (y>=Y_RESOLUTION))) {   
-							//Solve long press issues
-							if (!(x < (old_x -3) || x > (old_x + 3)))
-								x = old_x;
-							else
-								old_x = x;
-							
+							//Single touch							
+							if(num < 2){
+								//Solve long press issues
+								if (!(x < (old_x -3) || x > (old_x + 3)))
+									x = old_x;
+								else
+									old_x = x;
+							}
+
 							//Solve keyboard issues
 							if(x > X_RESOLUTION)
 								x = X_RESOLUTION;
@@ -1016,20 +984,21 @@ static void elan_ktf2k_ts_report_data(struct i2c_client *client, uint8_t *buf)
 							if(y > Y_RESOLUTION)
 								y = Y_RESOLUTION;
 							else if (y < 0)
-								y = 0;							
-
-							input_report_abs(idev, ABS_MT_TRACKING_ID, 0);
-							input_report_abs(idev, ABS_MT_TOUCH_MAJOR, 8);
+								y = 0;		
+							input_report_abs(idev, ABS_MT_TRACKING_ID, i);
+							input_report_abs(idev, ABS_MT_TOUCH_MAJOR, 1);
 							input_report_abs(idev, ABS_MT_POSITION_X, x);
 							input_report_abs(idev, ABS_MT_POSITION_Y, y);
 							input_report_abs(idev, ABS_MT_PRESSURE, MAX_PRESSURE/2);
+							
+							input_mt_sync(idev);
 
-							reported = 1;
+							reported ++;
 				  		}//end if border
 					}//end if finger status
 			  	    fbits = fbits >> 1;
 			  	    idx += 3;
-				}
+				}//end for
 			}
 			if (reported)
 				input_sync(idev);
@@ -1217,7 +1186,7 @@ static int elan_ktf2k_ts_probe(struct i2c_client *client,
 	}
 // james: check earlysuspend
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_STOP_DRAWING - 1;
+	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
 	ts->early_suspend.suspend = elan_ktf2k_ts_early_suspend;
 	ts->early_suspend.resume = elan_ktf2k_ts_late_resume;
 	register_early_suspend(&ts->early_suspend);
@@ -1326,8 +1295,8 @@ static int elan_ktf2k_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	int rc = 0;
 	disable_device_irq(ts, 1);
 
-	rc = cancel_work_sync(&ts->work);
-	/*if (rc)
+	/*rc = cancel_work_sync(&ts->work);
+	if (rc)
 		enable_device_irq(ts);*/
 
 	rc = elan_ktf2k_ts_set_power_state(ts->client, PWR_STATE_DEEP_SLEEP);
@@ -1373,8 +1342,8 @@ static struct i2c_driver ektf2k_ts_driver = {
 	.probe		= elan_ktf2k_ts_probe,
 	.remove		= elan_ktf2k_ts_remove,
 #ifndef CONFIG_HAS_EARLYSUSPEND
-	.suspend	= elan_ktf2k_ts_suspend,
-	.resume		= elan_ktf2k_ts_resume,
+	.suspend	= elan_ktf2k_ts_early_suspend,
+	.resume		= elan_ktf2k_ts_late_resume,
 #endif
 	.id_table	= elan_ktf2k_ts_id,
 	.driver		= {
