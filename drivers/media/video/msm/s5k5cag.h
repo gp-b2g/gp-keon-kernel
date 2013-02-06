@@ -19,19 +19,19 @@
 
 //extern struct mt9t013_reg mt9t013_regs; /* from mt9t013_reg.c */
 
-typedef enum {
+/*typedef enum {
   LED_MODE_OFF,
   LED_MODE_AUTO,
   LED_MODE_ON,
   LED_MODE_TORCH,
 
-  /*new mode above should be added above this line*/
+  // new mode above should be added above this line
   LED_MODE_MAX
-} led_mode_t;
+} led_mode_t;*/
 
 struct s5k5cag_sensor_cfg_data {
     struct sensor_cfg_data cfg;
-    led_mode_t led_mode;
+    //led_mode_t led_mode;
 };
 
 enum s5k5cag_width {
@@ -101,5 +101,5 @@ struct s5k5cag_reg {
         uint16_t config_end_size;
 };
 
-extern int msm_camera_flash_current_driver(struct msm_camera_sensor_flash_current_driver *current_driver,unsigned led_state);
+//extern int msm_camera_flash_current_driver(struct msm_camera_sensor_flash_current_driver *current_driver,unsigned led_state);
 #endif /* #define S5K5CAG_H */

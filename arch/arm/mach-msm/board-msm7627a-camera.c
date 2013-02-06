@@ -713,12 +713,12 @@ static struct platform_device msm_camera_sensor_ov7692 = {
 static struct msm_camera_sensor_platform_info s5k5cag_sensor_s5k5cag_info = {
 	.mount_angle = 90
 };
+#ifdef CONFIG_MSM_CAMERA_FLASH
 static struct msm_camera_sensor_flash_data flash_s5k5cag = {
 	.flash_type             = MSM_CAMERA_FLASH_LED,
-#ifdef CONFIG_MSM_CAMERA_FLASH
 	.flash_src              = &msm_flash_src
-#endif
 };
+#endif
 
 static struct msm_camera_sensor_info msm_camera_sensor_s5k5cag_data = {
 	.sensor_name    = "s5k5cag",
@@ -728,7 +728,7 @@ static struct msm_camera_sensor_info msm_camera_sensor_s5k5cag_data = {
 	.vcm_pwd                = 86,
 	.vcm_enable             = 0,
 	.pdata                  = &msm_camera_device_data_rear,
-	.flash_data             = &flash_s5k5cag,
+//	.flash_data             = &flash_s5k5cag,
 	.sensor_platform_info   = &s5k5cag_sensor_s5k5cag_info,
 	.csi_if                 = 1
 };

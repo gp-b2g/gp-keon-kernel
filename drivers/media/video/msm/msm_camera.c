@@ -47,11 +47,6 @@ spinlock_t st_frame_spinlock;
 #define ERR_COPY_FROM_USER() ERR_USER_COPY(0)
 #define ERR_COPY_TO_USER() ERR_USER_COPY(1)
 #define MAX_PMEM_CFG_BUFFERS 10
-#if 1
-#define printkcry(fmt,arg...) do{  } while(0)  
-#else  
-#define printkcry printk
-#endif 
 
 static struct class *msm_class;
 static dev_t msm_devno;
@@ -898,7 +893,7 @@ static struct msm_queue_cmd *__msm_control(struct msm_sync *sync,
 		int timeout)
 {
 	int rc;
-	///printk("=======wj wb %s %d\n",__FUNCTION__,__LINE__);
+
 	CDBG("Inside __msm_control\n");
 	if (sync->event_q.len <= 100 && sync->frame_q.len <= 100) {
 		/* wake up config thread */
@@ -906,7 +901,6 @@ static struct msm_queue_cmd *__msm_control(struct msm_sync *sync,
 	} else {
 		pr_err("%s, Error Queue limit exceeded e_q = %d, f_q = %d\n",
 			__func__, sync->event_q.len, sync->frame_q.len);
-		///	printk("=======wj outdbg %s %d\n",__FUNCTION__,__LINE__);
 		free_qcmd(qcmd);
 		return NULL;
 	}
@@ -940,7 +934,6 @@ static struct msm_queue_cmd *__msm_control(struct msm_sync *sync,
 	qcmd = msm_dequeue(queue, list_control);
 	BUG_ON(!qcmd);
 	CDBG("__msm_control done \n");
-	///printk("=======wj wb %s %d\n",__FUNCTION__,__LINE__);
 	return qcmd;
 }
 
@@ -989,35 +982,25 @@ static int msm_control(struct msm_control_device *ctrl_pmsm,
 	struct msm_ctrl_cmd udata_resp;
 	struct msm_queue_cmd *qcmd_resp = NULL;
 	uint8_t data[max_control_command_size];
-	struct msm_ctrl_cmd *udata; ///from msm_camera_interface.c camera_issue_ctrl_cmd(
-/***	  ctrlCmd.timeout_ms = timeout_ms;
-  ctrlCmd.type       = (uint16_t)type;  
-  ctrlCmd.length     = length;
-  ctrlCmd.resp_fd    = resp_fd;
-  ctrlCmd.value = value;  */  
-        
+	struct msm_ctrl_cmd *udata;
 	struct msm_queue_cmd *qcmd =
 		kmalloc(sizeof(struct msm_queue_cmd) +
 			sizeof(struct msm_ctrl_cmd), GFP_ATOMIC);
-        ///printk("  ====+ %d %s %s\n",__LINE__,__FUNCTION__,__FILE__); 
 	if (!qcmd) {
 		pr_err("%s: out of memory\n", __func__);
-	///	printk("  ====+ %d %s %s\n",__LINE__,__FUNCTION__,__FILE__); 
 		return -ENOMEM;
 	}
 	udata = (struct msm_ctrl_cmd *)(qcmd + 1);
 	atomic_set(&(qcmd->on_heap), 1);
 	CDBG("Inside msm_control\n");
 	if (copy_from_user(udata, arg, sizeof(struct msm_ctrl_cmd))) {
-		ERR_COPY_FROM_USER(); 
+		ERR_COPY_FROM_USER();
 		rc = -EFAULT;
 		goto end;
 	}
-        
-   ///     printk("  ====IMPORTANT DBG+ %d  %d \n",udata->type,(int)(*(void  *)(udata->value))); 
-    ///printk("  ====IMPORTANT DBG + %d   \n",udata->type);  
+
 	uptr = udata->value;
-	udata->value = data; ///have poinit to 
+	udata->value = data;
 	qcmd->type = MSM_CAM_Q_CTRL;
 	qcmd->command = udata;
 
@@ -1028,32 +1011,23 @@ static int msm_control(struct msm_control_device *ctrl_pmsm,
 					udata->length,
 					sizeof(data));
 			rc = -EIO;
-		///	printk("  ====+ %d %s %s\n",__LINE__,__FUNCTION__,__FILE__); 
 			goto end;
 		}
 		if (copy_from_user(udata->value, uptr, udata->length)) {
 			ERR_COPY_FROM_USER();
 			rc = -EFAULT;
-		///	printk("  ====+ %d %s %s\n",__LINE__,__FUNCTION__,__FILE__); 
 			goto end;
 		}
 	}
-    	    	///printk("  ====A+ %d %s %s %d  %d\n",__LINE__,__FUNCTION__,__FILE__,udata->type,data[0]); 
-    	       ///printk("  ====IMPORTANT DBG +line type:%d  %d  %d %d \n",__LINE__,udata->type,udata->length,data[0]);  
 		if(udata->type==14){   
-			///printk("  ====IMPORTANT DBG +line type:%d  %d  %d %d \n",__LINE__,udata->type,udata->length,data[0]);  
-			s5k5cag_set_wb(data[0]); ///return 0;
+			s5k5cag_set_wb(data[0]);
 		}
 		if(udata->type==8)
-		{   ///printk("  ====IMPORTANT DBG +line type:%d  %d  %d %d \n",__LINE__,udata->type,udata->length,data[0]);  
-			printk("  ====+ %d %s %s %d\n",__LINE__,__FUNCTION__,__FILE__,data[0]); 
-		 	s5k5cag_set_expo_compensation(data[0]); 
-		 	///atomic_set(&(qcmd->on_heap), 0);
-		 	///return 0;
+		{   
+			s5k5cag_set_expo_compensation(data[0]); 
 		}
 		
 	if (unlikely(!block)) {
-		///printk("  ====+ %d %s %s\n",__LINE__,__FUNCTION__,__FILE__); 
 		qcmd_resp = __msm_control_nb(sync, qcmd);
 		goto end;
 	}
@@ -1074,17 +1048,14 @@ static int msm_control(struct msm_control_device *ctrl_pmsm,
 		 * or when it is killed, qcmd will be freed in
 		 * msm_release_config.
 		 */
-		/// printk("  ====+ %d %s %s\n",__LINE__,__FUNCTION__,__FILE__); 
 		rc = PTR_ERR(qcmd_resp);
 		qcmd_resp = NULL;
 		goto end;
 	}
 
 	if (qcmd_resp->command) {
-		///printk("  ====+ %d %s %s\n",__LINE__,__FUNCTION__,__FILE__); 
 		udata_resp = *(struct msm_ctrl_cmd *)qcmd_resp->command;
 		if (udata_resp.length > 0) {
-			///printk("  ====+ %d %s %s\n",__LINE__,__FUNCTION__,__FILE__); 
 			if (copy_to_user(uptr,
 					 udata_resp.value,
 					 udata_resp.length)) {
@@ -1097,7 +1068,6 @@ static int msm_control(struct msm_control_device *ctrl_pmsm,
 
 		if (copy_to_user((void *)arg, &udata_resp,
 				sizeof(struct msm_ctrl_cmd))) {
-			///printk("  ====+ %d %s %s\n",__LINE__,__FUNCTION__,__FILE__); 
 			ERR_COPY_TO_USER();
 			rc = -EFAULT;
 			goto end;
@@ -1107,7 +1077,6 @@ static int msm_control(struct msm_control_device *ctrl_pmsm,
 end:
 	free_qcmd(qcmd);
 	CDBG("%s: done rc = %d\n", __func__, rc);
-	///printk("  ====+ %d %s %s\n",__LINE__,__FUNCTION__,__FILE__); 
 	return rc;
 }
 
@@ -1468,14 +1437,14 @@ static int msm_get_stats(struct msm_sync *sync, void __user *arg)
 		} else {
 			if (sync->stereocam_enabled) {
 				if (data->type == VFE_MSG_OUTPUT_P) {
-					CDBG("%s: Preview mark as st op 1\n",
+					CDBG("%s: Preview mark as stop 1\n",
 						__func__);
 					se.resptype = MSM_CAM_RESP_STEREO_OP_1;
 					rc = msm_divert_st_frame(sync, data,
 						&se, OUTPUT_TYPE_P);
 					break;
 				} else if (data->type == VFE_MSG_OUTPUT_V) {
-					CDBG("%s: Video mark as st op 2\n",
+					CDBG("%s: Video mark as stop 2\n",
 						__func__);
 					se.resptype = MSM_CAM_RESP_STEREO_OP_2;
 					rc = msm_divert_st_frame(sync, data,
@@ -2036,8 +2005,7 @@ static int msm_get_sensor_info(struct msm_sync *sync, void __user *arg)
 	memcpy(&info.name[0],
 		sdata->sensor_name,
 		MAX_SENSOR_NAME);
-	info.flash_enabled = sdata->flash_data->flash_type !=
-		MSM_CAMERA_FLASH_NONE;
+	info.flash_enabled = false;
 
 	/* copy back to user space */
 	if (copy_to_user((void *)arg,
@@ -2749,7 +2717,6 @@ static int msm_pp_release(struct msm_sync *sync, void __user *arg)
 					e_q = %d\n",
 					__func__, sync->frame_q.len,
 					sync->event_q.len);
-						///printk("=======wj outdbg %s %d\n",__FUNCTION__,__LINE__);
 				free_qcmd(sync->pp_prev);
 				goto done;
 			}
@@ -2890,7 +2857,6 @@ static long msm_ioctl_config(struct file *filep, unsigned int cmd,
 		break;
 
 	case MSM_CAM_IOCTL_SENSOR_IO_CFG:
-		printkcry(" =========aid1 %d %s  %s\n",__LINE__,__func__,__FILE__);
 		rc = pmsm->sync->sctrl.s_config(argp);
 		break;
 
@@ -3039,7 +3005,6 @@ static long msm_ioctl_control(struct file *filep, unsigned int cmd,
 
 	switch (cmd) {
 	case MSM_CAM_IOCTL_CTRL_COMMAND:
-	 	///printk("%s  %d  %s \n", __func__,__LINE__,__FILE__);
 		/* Coming from control thread, may need to wait for
 		 * command status */
 		CDBG("calling msm_control kernel msm_ioctl_control\n");
@@ -3423,7 +3388,6 @@ static void msm_vfe_sync(struct msm_vfe_resp *vdata,
 				pr_err("%s, Error Queue limit exceeded "
 					"f_q = %d, e_q = %d\n",	__func__,
 					sync->frame_q.len, sync->event_q.len);
-						///printk("=======wj outdbg %s %d\n",__FUNCTION__,__LINE__);
 				free_qcmd(qcmd);
 				return;
 			}
@@ -3592,7 +3556,6 @@ static void msm_vfe_sync(struct msm_vfe_resp *vdata,
 						f_q = %d, e_q = %d\n",
 						__func__, sync->frame_q.len,
 						sync->event_q.len);
-							///printk("=======wj outdbg %s %d\n",__FUNCTION__,__LINE__);
 					free_qcmd(qcmd);
 				}
 
@@ -3608,7 +3571,6 @@ static void msm_vfe_sync(struct msm_vfe_resp *vdata,
 					f_q = %d, e_q = %d\n",
 					__func__, sync->frame_q.len,
 					sync->event_q.len);
-						///printk("=======wj outdbg %s %d\n",__FUNCTION__,__LINE__);
 				free_qcmd(qcmd);
 			}
 
@@ -3660,7 +3622,6 @@ vfe_for_config:
 	} else {
 		pr_err("%s, Error Queue limit exceeded f_q = %d, e_q = %d\n",
 			__func__, sync->frame_q.len, sync->event_q.len);
-				///printk("=======wj outdbg %s %d\n",__FUNCTION__,__LINE__);
 		free_qcmd(qcmd);
 	}
 
@@ -3706,7 +3667,6 @@ static void msm_vpe_sync(struct msm_vpe_resp *vdata,
 			pr_err("%s, Error Queue limit exceeded f_q = %d, "
 				"e_q = %d\n", __func__, sync->frame_q.len,
 				sync->event_q.len);
-					///printk("=======wj outdbg %s %d\n",__FUNCTION__,__LINE__);
 			free_qcmd(qcmd);
 		}
 		return;
@@ -3999,37 +3959,30 @@ static int msm_sync_init(struct msm_sync *sync,
 	int rc = 0;
 	struct msm_sensor_ctrl sctrl;
 	sync->sdata = pdev->dev.platform_data;
-	printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
 	msm_queue_init(&sync->event_q, "event");
 	msm_queue_init(&sync->frame_q, "frame");
 	msm_queue_init(&sync->pict_q, "pict");
 	msm_queue_init(&sync->vpe_q, "vpe");
 
 	wake_lock_init(&sync->wake_lock, WAKE_LOCK_IDLE, "msm_camera");
-	printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
 	rc = msm_camio_probe_on(pdev);
-	printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
-	if (rc < 0) {	printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
+	if (rc < 0) {
 		wake_lock_destroy(&sync->wake_lock);
 		return rc;
 	}
 	rc = sensor_probe(sync->sdata, &sctrl); ///LE 0
 	if (rc >= 0) {
-		printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
 		sync->pdev = pdev;
 		sync->sctrl = sctrl;
 	}
-	printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
 	msm_camio_probe_off(pdev);
 	if (rc < 0) {
-		printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
 		pr_err("%s: failed to initialize %s\n",
 			__func__,
 			sync->sdata->sensor_name);
 		wake_lock_destroy(&sync->wake_lock);
 		return rc;
 	}
-	printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
 	sync->opencnt = 0;
 	sync->core_powered_on = 0;
 	sync->ignore_qcmd = false;
@@ -4039,7 +3992,6 @@ static int msm_sync_init(struct msm_sync *sync,
 		sync->sdata->strobe_flash_data->state = 0;
 		spin_lock_init(&sync->sdata->strobe_flash_data->spin_lock);
 	}
-		printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
 	CDBG("%s: initialized %s\n", __func__, sync->sdata->sensor_name);
 	return rc;
 }
@@ -4120,15 +4072,11 @@ int msm_camera_drv_start(struct platform_device *dev,
 	struct msm_cam_device *pmsm = NULL;
 	struct msm_sync *sync;
 	int rc = -ENODEV;
-	printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
 	if (camera_node >= MSM_MAX_CAMERA_SENSORS) {
 		pr_err("%s: too many camera sensors\n", __func__);
-		printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
 		return rc;
 	}
-	printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
 	if (!msm_class) {
-		printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
 		/* There are three device nodes per sensor */
 		rc = alloc_chrdev_region(&msm_devno, 0,
 				4 * MSM_MAX_CAMERA_SENSORS,
@@ -4136,7 +4084,6 @@ int msm_camera_drv_start(struct platform_device *dev,
 		if (rc < 0) {
 			pr_err("%s: failed to allocate chrdev: %d\n", __func__,
 				rc);
-				printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
 			return rc;
 		}
 
@@ -4145,20 +4092,17 @@ int msm_camera_drv_start(struct platform_device *dev,
 			rc = PTR_ERR(msm_class);
 			pr_err("%s: create device class failed: %d\n",
 				__func__, rc);
-				printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
 			return rc;
 		}
 	}
-	printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
 	pmsm = kzalloc(sizeof(struct msm_cam_device) * 4 +
 			sizeof(struct msm_sync), GFP_ATOMIC);
-	if (!pmsm){printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
+	if (!pmsm){
 		return -ENOMEM;}
 	sync = (struct msm_sync *)(pmsm + 4);
-	printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
 	rc = msm_sync_init(sync, dev, sensor_probe);
 	if (rc < 0) {
-		kfree(pmsm);printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
+		kfree(pmsm);
 		return rc;
 	}
 
@@ -4166,7 +4110,7 @@ int msm_camera_drv_start(struct platform_device *dev,
 	rc = msm_device_init(pmsm, sync, camera_node);
 	if (rc < 0) {
 		msm_sync_destroy(sync);
-		kfree(pmsm);printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
+		kfree(pmsm);
 		return rc;
 	}
 
@@ -4174,7 +4118,7 @@ int msm_camera_drv_start(struct platform_device *dev,
 	sensor_mount_angle[camera_node] = sync->sctrl.s_mount_angle;
 	camera_node++;
 
-	list_add(&sync->list, &msm_sensors);printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
+	list_add(&sync->list, &msm_sensors);
 	return rc;
 }
 EXPORT_SYMBOL(msm_camera_drv_start);
