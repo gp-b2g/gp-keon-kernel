@@ -62,10 +62,9 @@ static int mipi_cmd_ILI9487_hvga_pt_init(void)
 
 	pinfo.clk_rate = 499000000;
 
-	//pinfo.lcd.vsync_enable = TRUE;
-	//pinfo.lcd.hw_vsync_mode = TRUE;
-	
-	pinfo.lcd.refx100 = 6100; /* adjust refx100 to prevent tearing */
+	pinfo.lcd.vsync_enable = TRUE;
+	pinfo.lcd.hw_vsync_mode = TRUE;
+	pinfo.lcd.refx100 = 6200; /* adjust refx100 to prevent tearing */
 
 	pinfo.mipi.mode = DSI_CMD_MODE;
 	pinfo.mipi.dst_format = DSI_CMD_DST_FORMAT_RGB888;
@@ -73,10 +72,8 @@ static int mipi_cmd_ILI9487_hvga_pt_init(void)
 	pinfo.mipi.rgb_swap = DSI_RGB_SWAP_RGB;
 	pinfo.mipi.data_lane0 = TRUE;
 	pinfo.mipi.data_lane1 = TRUE;
-	pinfo.mipi.data_lane2 = FALSE;
-	pinfo.mipi.data_lane3 = FALSE;
-	pinfo.mipi.t_clk_post = 0x21;
-	pinfo.mipi.t_clk_pre = 0x24;
+	pinfo.mipi.t_clk_post = 0x20;
+	pinfo.mipi.t_clk_pre = 0x2F;
 	pinfo.mipi.stream = 0; /* dma_p */
 	pinfo.mipi.mdp_trigger = DSI_CMD_TRIGGER_SW_TE;
 	pinfo.mipi.dma_trigger = DSI_CMD_TRIGGER_SW;

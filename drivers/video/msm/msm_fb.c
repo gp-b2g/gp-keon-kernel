@@ -92,7 +92,6 @@ u32 mddi_msg_level = 5;
 
 extern int32 mdp_block_power_cnt[MDP_MAX_BLOCK];
 extern unsigned long mdp_timer_duration;
-extern bool early_sleep_state;
 
 static int msm_fb_register(struct msm_fb_data_type *mfd);
 static int msm_fb_open(struct fb_info *info, int user);
@@ -285,6 +284,9 @@ static ssize_t msm_fb_msm_fb_type(struct device *dev,
 		break;
 	case MIPI_CMD_PANEL:
 		ret = snprintf(buf, PAGE_SIZE, "mipi dsi cmd panel\n");
+		break;
+	case WRITEBACK_PANEL:
+		ret = snprintf(buf, PAGE_SIZE, "writeback panel\n");
 		break;
 	default:
 		ret = snprintf(buf, PAGE_SIZE, "unknown panel\n");
@@ -703,7 +705,7 @@ static struct platform_driver msm_fb_driver = {
 		   .pm = &msm_fb_dev_pm_ops,
 		   },
 };
-
+#if 0 //disable flush FB when suspend, if using HDMI, enable this
 #if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CONFIG_FB_MSM_MDP303)
 static void memset32_io(u32 __iomem *_ptr, u32 val, size_t count)
 {
@@ -712,12 +714,13 @@ static void memset32_io(u32 __iomem *_ptr, u32 val, size_t count)
 		writel(val, _ptr++);
 }
 #endif
-
+#endif
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void msmfb_early_suspend(struct early_suspend *h)
 {
 	struct msm_fb_data_type *mfd = container_of(h, struct msm_fb_data_type,
 						    early_suspend);
+#if 0 //disable flush FB when suspend, if using HDMI, enable this
 #if defined(CONFIG_FB_MSM_MDP303)
 	/*
 	* For MDP with overlay, set framebuffer with black pixels
@@ -733,6 +736,7 @@ static void msmfb_early_suspend(struct early_suspend *h)
 		memset32_io((void *)fbi->screen_base, 0x00, fbi->fix.smem_len);
 		break;
 	}
+#endif
 #endif
 	msm_fb_suspend_sub(mfd);
 }
@@ -759,10 +763,6 @@ void msm_fb_set_backlight(struct msm_fb_data_type *mfd, __u32 bkl_lvl)
 		unset_bl_level = 0;
 	}
 
-	if(!early_sleep_state && !bl_level_old)
-	{
-		return;
-	}
 	pdata = (struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
 
 	if ((pdata) && (pdata->set_backlight)) {
@@ -1373,7 +1373,10 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	ret = 0;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	if (mfd->panel_info.type != DTV_PANEL) {
+
+	if (hdmi_prim_display ||
+	    (mfd->panel_info.type != DTV_PANEL &&
+	     mfd->panel_info.type != WRITEBACK_PANEL)) {
 		mfd->early_suspend.suspend = msmfb_early_suspend;
 		mfd->early_suspend.resume = msmfb_early_resume;
 		mfd->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB - 2;
@@ -1647,8 +1650,7 @@ static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 	if (mfd->msmfb_no_update_notify_timer.function)
 		del_timer(&mfd->msmfb_no_update_notify_timer);
 
-	mfd->msmfb_no_update_notify_timer.expires =
-				jiffies + ((1000 * HZ) / 1000);
+	mfd->msmfb_no_update_notify_timer.expires = jiffies + (2 * HZ);
 	add_timer(&mfd->msmfb_no_update_notify_timer);
 	mutex_unlock(&msm_fb_notify_update_sem);
 
@@ -1671,14 +1673,13 @@ static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 		pdata = (struct msm_fb_panel_data *)mfd->pdev->
 			dev.platform_data;
 		if ((pdata) && (pdata->set_backlight)) {
-			bl_updated = 1;
 			down(&mfd->sem);
 			msleep(50);
 			mfd->bl_level = unset_bl_level;
 			pdata->set_backlight(mfd);
 			bl_level_old = unset_bl_level;
 			up(&mfd->sem);
-
+			bl_updated = 1;
 		}
 	}
 //cellon,Zepeng,modify end,2013-01-24,for LCD white screen      
@@ -2802,8 +2803,7 @@ static int msmfb_overlay_play(struct fb_info *info, unsigned long *argp)
 	if (mfd->msmfb_no_update_notify_timer.function)
 		del_timer(&mfd->msmfb_no_update_notify_timer);
 
-	mfd->msmfb_no_update_notify_timer.expires =
-				jiffies + ((1000 * HZ) / 1000);
+	mfd->msmfb_no_update_notify_timer.expires = jiffies + (2 * HZ);
 	add_timer(&mfd->msmfb_no_update_notify_timer);
 	mutex_unlock(&msm_fb_notify_update_sem);
 
@@ -3107,12 +3107,14 @@ static int msmfb_notify_update(struct fb_info *info, unsigned long *argp)
 
 	if (notify == NOTIFY_UPDATE_START) {
 		INIT_COMPLETION(mfd->msmfb_update_notify);
-		wait_for_completion_interruptible(&mfd->msmfb_update_notify);
+		ret = wait_for_completion_interruptible_timeout(
+		&mfd->msmfb_update_notify, 4*HZ);
 	} else {
 		INIT_COMPLETION(mfd->msmfb_no_update_notify);
-		wait_for_completion_interruptible(&mfd->msmfb_no_update_notify);
+		ret = wait_for_completion_interruptible_timeout(
+		&mfd->msmfb_no_update_notify, 4*HZ);
 	}
-	return 0;
+	return (ret > 0) ? 0 : -1;
 }
 
 static int msmfb_handle_pp_ioctl(struct msmfb_mdp_pp *pp_ptr)

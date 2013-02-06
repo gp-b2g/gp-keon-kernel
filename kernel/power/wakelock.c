@@ -386,7 +386,7 @@ static void suspend(struct work_struct *work)
 	if (current_event_num == entry_event_num) {
 		if (debug_mask & DEBUG_SUSPEND)
 			pr_info("suspend: pm_suspend returned with no event\n");
-		wake_lock_timeout(&unknown_wakeup, HZ / 2);
+    		wake_lock_timeout(&unknown_wakeup, msecs_to_jiffies(unknown_wakeup_timeout));
 	}
 	 wake_unlock(&prevent_idle_lock);
 

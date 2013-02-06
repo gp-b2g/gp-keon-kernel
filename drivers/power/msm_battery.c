@@ -15,7 +15,7 @@
  * this needs to be before <linux/kernel.h> is loaded,
  * and <linux/sched.h> loads <linux/kernel.h>
  */
-#define DEBUG  1
+#define DEBUG  0
 
 #include <linux/slab.h>
 #include <linux/earlysuspend.h>
@@ -37,8 +37,8 @@
 #define BATTERY_RPC_PROG	0x30000089
 #define BATTERY_RPC_VER_1_1	0x00010001
 #define BATTERY_RPC_VER_2_1	0x00020001
-#define BATTERY_RPC_VER_4_1     0x00040001
-#define BATTERY_RPC_VER_5_1     0x00050001
+#define BATTERY_RPC_VER_4_1 0x00040001
+#define BATTERY_RPC_VER_5_1 0x00050001
 
 #define BATTERY_RPC_CB_PROG	(BATTERY_RPC_PROG | 0x01000000)
 
@@ -46,14 +46,14 @@
 #define CHG_RPC_VER_1_1		0x00010001
 #define CHG_RPC_VER_1_3		0x00010003
 #define CHG_RPC_VER_2_2		0x00020002
-#define CHG_RPC_VER_3_1         0x00030001
-#define CHG_RPC_VER_4_1         0x00040001
+#define CHG_RPC_VER_3_1		0x00030001
+#define CHG_RPC_VER_4_1		0x00040001
 
 #define BATTERY_REGISTER_PROC				2
 #define BATTERY_MODIFY_CLIENT_PROC			4
-#define BATTERY_DEREGISTER_CLIENT_PROC			5
+#define BATTERY_DEREGISTER_CLIENT_PROC		5
 #define BATTERY_READ_MV_PROC				12
-#define BATTERY_ENABLE_DISABLE_FILTER_PROC		14
+#define BATTERY_ENABLE_DISABLE_FILTER_PROC	14
 
 #define VBATT_FILTER			2
 
@@ -61,13 +61,15 @@
 #define BATTERY_CB_ID_ALL_ACTIV		1
 #define BATTERY_CB_ID_LOW_VOL		2
 
-#define BATTERY_LOW		3200
-#define BATTERY_HIGH		4300
+#define BATTERY_LOW		3500
+#define BATTERY_HIGH	4180
 
 #define ONCRPC_CHG_GET_GENERAL_STATUS_PROC	12
 #define ONCRPC_CHARGER_API_VERSIONS_PROC	0xffffffff
 
-#define BATT_RPC_TIMEOUT    5000	/* 5 sec */
+static u32 msm_batt_capacity(u32 current_voltage);
+
+#define BATT_RPC_TIMEOUT    5000 /* 5 sec */
 
 #define INVALID_BATT_HANDLE    -1
 
@@ -179,17 +181,19 @@ enum chg_battery_level_type {
 #ifndef CONFIG_BATTERY_MSM_FAKE
 struct rpc_reply_batt_chg_v1 {
 	struct rpc_reply_hdr hdr;
-	u32 	more_data;
-
+	u32 more_data;
 	u32	charger_status;
 	u32	charger_type;
 	u32	battery_status;
 	u32	battery_level;
-	u32     battery_voltage;
+	u32 battery_voltage;
 	u32	battery_temp;
+	s32 batt_temp;//battery temp without charging
+	u32 batt_voltage;//battery voltage without chaging
+	u32 batt_capacity;
 	//Cellon add start,Fengying.Zhang,2012/01/17,for charge_current property
 	u32 	charge_current;
-       //Cellon add end,Fengying.Zhang,2012/01/17,for charge_current property
+    //Cellon add end,Fengying.Zhang,2012/01/17,for charge_current property
 };
 
 struct rpc_reply_batt_chg_v2 {
@@ -232,7 +236,7 @@ struct msm_battery_info {
 	u32 battery_level;
 	u32 battery_voltage; /* in millie volts */
 	u32 battery_temp;  /* in celsius */
-       //Cellon add start,Fengying.Zhang,2012/01/17,for charge_current property
+    //Cellon add start,Fengying.Zhang,2012/01/17,for charge_current property
 	u32 charge_current;
 	//Cellon add start,Fengying.Zhang,2012/01/17,for charge_current property
 	u32(*calculate_capacity) (u32 voltage);
@@ -279,6 +283,7 @@ static enum power_supply_property msm_power_props[] = {
 static char *msm_power_supplied_to[] = {
 	"battery",
 };
+
 static int msm_power_get_property(struct power_supply *psy,
 				  enum power_supply_property psp,
 				  union power_supply_propval *val)
@@ -366,7 +371,7 @@ static int msm_batt_power_get_property(struct power_supply *psy,
 		break;
 	//Cellon add start,Fengying.Zhang,2013/01/16,for more property 	
 	case POWER_SUPPLY_PROP_TEMP:
-		val->intval = msm_batt_info.battery_temp;
+		val->intval = msm_batt_info.battery_temp *10;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		val->intval = msm_batt_info.charge_current;
@@ -457,9 +462,10 @@ static int msm_batt_get_batt_chg_status(void)
 		be32_to_cpu_self(v1p->battery_level);
 		be32_to_cpu_self(v1p->battery_voltage);
 		be32_to_cpu_self(v1p->battery_temp);
-             //Cellon add start,Fengying.Zhang,2012/01/17,for charge_current property
+		be32_to_cpu_self(v1p->batt_temp);
+		be32_to_cpu_self(v1p->batt_voltage);
+        be32_to_cpu_self(v1p->batt_capacity);
 		be32_to_cpu_self(v1p->charge_current);
-             //Cellon add end,Fengying.Zhang,2012/01/17,for charge_current property
 	} else {
 		pr_err("%s: No battery/charger data in RPC reply\n", __func__);
 		return -EIO;
@@ -475,21 +481,34 @@ static void msm_batt_update_psy_status(void)
 	u32	charger_type;
 	u32	battery_status;
 	u32	battery_level;
-	u32     battery_voltage;
-	u32	battery_temp;
-	u32 	charge_current;
-
+	u32 battery_voltage;
+	s32	battery_temp;
+	u32	charge_current;
 	struct	power_supply	*supp;
 
+	u32 battery_capacity;
+		 
 	if (msm_batt_get_batt_chg_status())
 		return;
+
 	charger_status = rep_batt_chg.v1.charger_status;
 	charger_type = rep_batt_chg.v1.charger_type;
 	battery_status = rep_batt_chg.v1.battery_status;
 	battery_level = rep_batt_chg.v1.battery_level;
 	battery_voltage = rep_batt_chg.v1.battery_voltage;
 	battery_temp = rep_batt_chg.v1.battery_temp;
-    //Cellon add start,Fengying.Zhang,2012/01/17,for charge_current property
+
+	//When no charging
+	if(msm_batt_info.batt_status !=	POWER_SUPPLY_STATUS_CHARGING){
+		battery_temp = rep_batt_chg.v1.batt_temp;
+		battery_voltage = rep_batt_chg.v1.batt_voltage;		
+	}else{
+		battery_voltage = rep_batt_chg.v1.battery_voltage;
+		battery_temp = rep_batt_chg.v1.battery_temp;
+	}
+		
+	battery_capacity = rep_batt_chg.v1.batt_capacity ;
+	//Cellon add start,Fengying.Zhang,2012/01/17,for charge_current property
 	charge_current = rep_batt_chg.v1.charge_current;
     //Cellon add end,Fengying.Zhang,2012/01/17,for charge_current property
 
@@ -503,7 +522,7 @@ static void msm_batt_update_psy_status(void)
 	    charger_type == msm_batt_info.charger_type &&
 	    battery_status == msm_batt_info.battery_status &&
 	    battery_level == msm_batt_info.battery_level &&
-	    battery_voltage == msm_batt_info.battery_voltage &&  
+	    battery_voltage == msm_batt_info.battery_voltage &&
 	    charge_current == msm_batt_info.charge_current &&
 	    battery_temp == msm_batt_info.battery_temp) {
 		/* Got unnecessary event from Modem PMIC VBATT driver.
@@ -655,12 +674,12 @@ static void msm_batt_update_psy_status(void)
 		}
 	}
 
-	msm_batt_info.charger_status 	= charger_status;
-	msm_batt_info.charger_type 	= charger_type;
-	msm_batt_info.battery_status 	= battery_status;
-	msm_batt_info.battery_level 	= battery_level;
-	msm_batt_info.battery_temp 	= battery_temp;
-	msm_batt_info.charge_current    = charge_current;
+	msm_batt_info.charger_status = charger_status;
+	msm_batt_info.charger_type 	 = charger_type;
+	msm_batt_info.battery_status = battery_status;
+	msm_batt_info.battery_level  = battery_level;
+	msm_batt_info.battery_temp 	 = battery_temp;
+	msm_batt_info.charge_current = charge_current;
 
 	if (msm_batt_info.battery_voltage != battery_voltage) {
 		msm_batt_info.battery_voltage  	= battery_voltage;
@@ -1207,16 +1226,53 @@ static int msm_batt_cleanup(void)
 
 static u32 msm_batt_capacity(u32 current_voltage)
 {
+	static u32 once = 0;
+    static u32 pre_percentage = 0;
+	static u32 low_batt_times = 0;
+    u32 cur_percentage = 100;
 	u32 low_voltage = msm_batt_info.voltage_min_design;
 	u32 high_voltage = msm_batt_info.voltage_max_design;
 
 	if (current_voltage <= low_voltage)
-		return 0;
+		cur_percentage = 0;
 	else if (current_voltage >= high_voltage)
-		return 100;
+		cur_percentage = 100;
 	else
-		return (current_voltage - low_voltage) * 100
-			/ (high_voltage - low_voltage);
+		cur_percentage = (current_voltage - low_voltage) * 100 / (high_voltage - low_voltage);
+
+	if (0 == once)
+    {
+        pre_percentage = cur_percentage;
+        once = 1;
+		msm_batt_update_psy_status();
+		return cur_percentage;
+    }
+
+    if (msm_batt_info.batt_status != POWER_SUPPLY_STATUS_CHARGING)
+    {   // can only drop
+        cur_percentage = (cur_percentage < pre_percentage) ? cur_percentage : pre_percentage;
+        pre_percentage = cur_percentage;
+    }
+    else
+    {   
+		//Prevent one instant 0% when connect charger to prevent shutdown on Firefox OS
+		if(cur_percentage == 0)
+        	cur_percentage = (cur_percentage > pre_percentage) ? cur_percentage : pre_percentage;
+        pre_percentage = cur_percentage;
+    }
+
+	//Prevent shutdown instead of inform low battery on Firefox OS.
+	if(low_batt_times == 0){
+		if(cur_percentage < 3){
+			cur_percentage = 3;
+			low_batt_times ++;
+		}else
+			low_batt_times = 0;
+	}else
+		low_batt_times = 0;
+
+	msm_batt_update_psy_status();
+    return cur_percentage;
 }
 
 #ifndef CONFIG_BATTERY_MSM_FAKE
@@ -1408,7 +1464,12 @@ static int __devinit msm_batt_probe(struct platform_device *pdev)
 	msm_batt_info.voltage_fail_safe  = pdata->voltage_fail_safe;
 
 	msm_batt_info.batt_technology = pdata->batt_technology;
-	msm_batt_info.calculate_capacity = pdata->calculate_capacity;
+	#if 0
+		msm_batt_info.calculate_capacity = pdata->calculate_capacity;
+	#else
+		printk("Usando Custom msm_batt_capacity");
+		msm_batt_info.calculate_capacity = msm_batt_capacity;
+	#endif
 
 	if (!msm_batt_info.voltage_min_design)
 		msm_batt_info.voltage_min_design = BATTERY_LOW;
@@ -1453,7 +1514,7 @@ static int __devinit msm_batt_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	msm_batt_info.early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
+	msm_batt_info.early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 10;
 	msm_batt_info.early_suspend.suspend = msm_batt_early_suspend;
 	msm_batt_info.early_suspend.resume = msm_batt_late_resume;
 	register_early_suspend(&msm_batt_info.early_suspend);
