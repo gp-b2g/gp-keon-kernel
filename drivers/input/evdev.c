@@ -12,7 +12,7 @@
 
 #define EVDEV_MINOR_BASE	64
 #define EVDEV_MINORS		32
-#define EVDEV_MIN_BUFFER_SIZE	128U
+#define EVDEV_MIN_BUFFER_SIZE	64U
 #define EVDEV_BUF_PACKETS	8
 
 #include <linux/poll.h>
@@ -285,6 +285,9 @@ static unsigned int evdev_compute_buffer_size(struct input_dev *dev)
 	return roundup_pow_of_two(n_events);
 }
 
+static int evdev_enable_suspend_block(struct evdev *evdev,
+				      struct evdev_client *client);
+
 static int evdev_open(struct inode *inode, struct file *file)
 {
 	struct evdev *evdev;
@@ -322,8 +325,13 @@ static int evdev_open(struct inode *inode, struct file *file)
 	snprintf(client->name, sizeof(client->name), "%s-%d",
 			dev_name(&evdev->dev), task_tgid_vnr(current));
 	client->evdev = evdev;
-	evdev_attach_client(evdev, client);
 
+	if (!strcmp(evdev->handle.dev->name, "7k_handset")) {
+		printk("enable evdev wakelock to block suspend\n");
+		evdev_enable_suspend_block(NULL, client);
+	}
+
+	evdev_attach_client(evdev, client);
 	error = evdev_open_device(evdev);
 	if (error)
 		goto err_free_client;

@@ -608,7 +608,7 @@ static int msm_pm_poll_state(int nr_grps, struct msm_pm_polled_group *grps)
  *****************************************************************************/
 
 #define SCLK_HZ (32768)
-#define MSM_PM_SLEEP_TICK_LIMIT (0x54600000)
+#define MSM_PM_SLEEP_TICK_LIMIT (0x6DDD000)
 
 #ifdef CONFIG_MSM_SLEEP_TIME_OVERRIDE
 static int msm_pm_sleep_time_override;
@@ -1844,6 +1844,7 @@ static int __init msm_pm_init(void)
 
 	BUG_ON(msm_pm_modes == NULL);
 
+	atomic_set(&msm_pm_init_done, 1);
 	suspend_set_ops(&msm_pm_ops);
 
 	msm_pm_mode_sysfs_add();
@@ -1857,7 +1858,6 @@ static int __init msm_pm_init(void)
 	}
 #endif
 
-	atomic_set(&msm_pm_init_done, 1);
 	return 0;
 }
 

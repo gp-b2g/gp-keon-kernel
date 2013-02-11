@@ -40,6 +40,26 @@ bool iommu_found(void)
 }
 EXPORT_SYMBOL_GPL(iommu_found);
 
+/**
+ * iommu_set_fault_handler() - set a fault handler for an iommu domain
+ * @domain: iommu domain
+ * @handler: fault handler
+ *
+ * This function should be used by IOMMU users which want to be notified
+ * whenever an IOMMU fault happens.
+ *
+ * The fault handler itself should return 0 on success, and an appropriate
+ * error code otherwise.
+ */
+void iommu_set_fault_handler(struct iommu_domain *domain,
+					iommu_fault_handler_t handler)
+{
+	BUG_ON(!domain);
+
+	domain->handler = handler;
+}
+EXPORT_SYMBOL_GPL(iommu_set_fault_handler);
+
 struct iommu_domain *iommu_domain_alloc(int flags)
 {
 	struct iommu_domain *domain;
@@ -48,7 +68,7 @@ struct iommu_domain *iommu_domain_alloc(int flags)
 	if (!iommu_found())
 		return NULL;
 
-	domain = kmalloc(sizeof(*domain), GFP_KERNEL);
+	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
 	if (!domain)
 		return NULL;
 

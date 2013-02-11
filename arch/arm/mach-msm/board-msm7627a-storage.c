@@ -29,6 +29,7 @@
 	|| defined(CONFIG_MMC_MSM_SDC3_SUPPORT)\
 	|| defined(CONFIG_MMC_MSM_SDC4_SUPPORT))
 
+#define MAX_SDCC_CONTROLLER 4
 static unsigned long vreg_sts, gpio_sts;
 
 struct sdcc_gpio {
@@ -155,7 +156,7 @@ static void gpio_sdc1_config(void)
 		gpio_sdc1_hw_det = 42;
 }
 
-static struct regulator *sdcc_vreg_data[ARRAY_SIZE(sdcc_cfg_data)];
+static struct regulator *sdcc_vreg_data[MAX_SDCC_CONTROLLER];
 static int msm_sdcc_setup_gpio(int dev_id, unsigned int enable)
 {
 	int rc = 0;
@@ -245,7 +246,7 @@ static unsigned int msm7627a_sdcc_slot_status(struct device *dev)
 {
 	int status;
 
-	status = gpio_tlmm_config(GPIO_CFG(gpio_sdc1_hw_det, 0, GPIO_CFG_INPUT,
+	status = gpio_tlmm_config(GPIO_CFG(gpio_sdc1_hw_det, 2, GPIO_CFG_INPUT,
 				GPIO_CFG_PULL_UP, GPIO_CFG_8MA),
 				GPIO_CFG_ENABLE);
 	if (status)

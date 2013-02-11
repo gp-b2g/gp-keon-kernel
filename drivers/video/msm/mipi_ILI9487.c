@@ -32,13 +32,13 @@ static char ILI9487_command1[] = {
 static char ILI9487_command2[] = {
 	0xF7, 0xA9, 0x51, 0x2C, 0x8A
 	};
-   
+
 static char ILI9487_command3[] = {
 	0xFC, 0x00, 0x09
 	};
 
 static char ILI9487_command4[] = {
-	0x3A, 0x77
+	0x3A, 0x66
 	};
 
 static char ILI9487_command5[] = {
@@ -79,17 +79,17 @@ static char ILI9487_command11[] = {
 
 static char ILI9487_command12[] = {
 	0xE0,0x0F,0x18,0x17,
-	0x0C,0x0E,0x06,0x4A,
-	0x96,0x3E,0x09,0x15,
-	0x08,0x17,0x0D,0x00
-	};
+	0x04,0x08,0x06,0x4A,
+	0x62,0x3E,0x08,0x11,
+	0x04,0x0A,0x04,0x00
+};
 
 static char ILI9487_command13[] = {
 	0xE1,0x0F,0x35,0x2E,
 	0x07,0x09,0x01,0x45,
-	0x53,0x34,0x05,0x0E,
-	0x04,0x21,0x21,0x00
-};
+	0x01,0x34,0x00,0x0A,
+	0x00,0x21,0x1A,0x00
+}; 
 
 static char ILI9487_command17[] = {0x11};
 static char ILI9487_command18[] = {0x29};
@@ -107,19 +107,16 @@ static char cabc[2] = {
 };
 
 static struct dsi_cmd_desc ILI9487_cmd_display_on_cmds[] = {
-	{DTYPE_DCS_WRITE1, 1, 0, 0, 10, sizeof(display_bringtness), display_bringtness},
-	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(crtl_display), crtl_display},
-	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(cabc), cabc},
-	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command1), ILI9487_command1},
+	{DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(ILI9487_command1), ILI9487_command1},
 	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command2), ILI9487_command2},
-	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command3), ILI9487_command3},
-	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command4), ILI9487_command4},
+	{DTYPE_DCS_LWRITE, 1, 0, 0, 10, sizeof(ILI9487_command3), ILI9487_command3},
+	{DTYPE_DCS_LWRITE, 1, 0, 0, 30, sizeof(ILI9487_command4), ILI9487_command4},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command5), ILI9487_command5},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command6), ILI9487_command6},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command7), ILI9487_command7},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command8), ILI9487_command8},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command9), ILI9487_command9},
-	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command10), ILI9487_command10},
+	{DTYPE_DCS_LWRITE, 1, 0, 0, 10, sizeof(ILI9487_command10), ILI9487_command10},
 	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command11), ILI9487_command11},
 	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command12), ILI9487_command12},
 	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command13), ILI9487_command13},
@@ -128,6 +125,9 @@ static struct dsi_cmd_desc ILI9487_cmd_display_on_cmds[] = {
 	{DTYPE_DCS_WRITE, 1, 0, 0, 200, sizeof(ILI9487_command17), ILI9487_command17},
 	{DTYPE_DCS_WRITE, 1, 0, 0, 120, sizeof(ILI9487_command18), ILI9487_command18},
 	{DTYPE_DCS_WRITE, 1, 0, 0, 10, sizeof(ILI9487_command19), ILI9487_command19},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(display_bringtness), display_bringtness},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(crtl_display), crtl_display},
+	{DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(cabc), cabc},
 };
 
 static char display_off[2] = {0x28, 0x00};

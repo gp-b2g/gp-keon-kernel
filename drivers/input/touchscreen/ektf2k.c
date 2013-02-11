@@ -871,22 +871,6 @@ static int elan_ktf2k_ts_set_power_state(struct i2c_client *client, int state)
 	return 0;
 }
 
-static int elan_ktf2k_ts_get_power_state(struct i2c_client *client)
-{
-	int rc = 0;
-	uint8_t cmd[] = {CMD_R_PKT, 0x50, 0x00, 0x01};
-	uint8_t buf[4], power_state;
-
-	rc = elan_ktf2k_ts_get_data(client, cmd, buf, 4);
-	if (rc)
-		return rc;
-
-	power_state = buf[1];
-	power_state = (power_state & PWR_STATE_MASK) >> 3;
-
-	return power_state;
-}
-
 static int elan_ktf2k_ts_recv_data(struct i2c_client *client, uint8_t *buf)
 {
 
@@ -1186,7 +1170,7 @@ static int elan_ktf2k_ts_probe(struct i2c_client *client,
 	}
 // james: check earlysuspend
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
+	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_STOP_DRAWING - 1;
 	ts->early_suspend.suspend = elan_ktf2k_ts_early_suspend;
 	ts->early_suspend.resume = elan_ktf2k_ts_late_resume;
 	register_early_suspend(&ts->early_suspend);
@@ -1250,11 +1234,7 @@ static int elan_ktf2k_ts_probe(struct i2c_client *client,
 #endif	
 	//cellon,Zepeng,modify end,2013-01-05,for TP fw_updata	  
 	return 0;
-/*
-err_request_irq_failed: 
-	if (client->irq)          
-        	free_irq(client->irq, ts);                       
-*/
+
 err_input_register_device_failed:
 	if (ts->input_dev)
 		input_free_device(ts->input_dev);
@@ -1293,13 +1273,12 @@ static int elan_ktf2k_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	struct elan_ktf2k_ts_data *ts = i2c_get_clientdata(client);
 	int rc = 0;
-	disable_device_irq(ts, 1);
-
-	/*rc = cancel_work_sync(&ts->work);
-	if (rc)
-		enable_device_irq(ts);*/
 
 	rc = elan_ktf2k_ts_set_power_state(ts->client, PWR_STATE_DEEP_SLEEP);
+	msleep(10);
+
+	disable_device_irq(ts, 1);
+
 	return rc;
 }
 
@@ -1307,12 +1286,10 @@ static int elan_ktf2k_ts_resume(struct i2c_client *client)
 {
 	struct elan_ktf2k_ts_data *ts = i2c_get_clientdata(client);
 	int rc = 0;
-	do {
-		rc = elan_ktf2k_ts_set_power_state(ts->client, PWR_STATE_NORMAL);
-		rc = elan_ktf2k_ts_get_power_state(ts->client);
-		if (rc == PWR_STATE_NORMAL)
-			break;
-	} while (true);
+
+	rc = elan_ktf2k_ts_set_power_state(ts->client, PWR_STATE_NORMAL);
+	msleep(10);
+
 
 	enable_device_irq(ts);
 	return 0;
@@ -1341,10 +1318,8 @@ static const struct i2c_device_id elan_ktf2k_ts_id[] = {
 static struct i2c_driver ektf2k_ts_driver = {
 	.probe		= elan_ktf2k_ts_probe,
 	.remove		= elan_ktf2k_ts_remove,
-#ifndef CONFIG_HAS_EARLYSUSPEND
-	.suspend	= elan_ktf2k_ts_early_suspend,
-	.resume		= elan_ktf2k_ts_late_resume,
-#endif
+	.suspend	= elan_ktf2k_ts_suspend,
+	.resume		= elan_ktf2k_ts_resume,
 	.id_table	= elan_ktf2k_ts_id,
 	.driver		= {
 		.name = ELAN_KTF2K_NAME,

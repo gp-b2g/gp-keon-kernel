@@ -65,7 +65,7 @@
 #endif
 
 #define PMEM_KERNEL_EBI1_SIZE	0x3A000
-#define MSM_PMEM_AUDIO_SIZE	0x5B000
+#define MSM_PMEM_AUDIO_SIZE	0x1F4000
 
 #define PS31XX_INT         17                                                                                                              
 #define AKM_GPIO_DRDY      26                                                                                                                
@@ -153,9 +153,9 @@ static void __init register_i2c_devices(void)
 #endif
 
 static struct msm_gpio qup_i2c_gpios_io[] = {
-	{ GPIO_CFG(60, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA),
+	{ GPIO_CFG(60, 1, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA),
 		"qup_scl" },
-	{ GPIO_CFG(61, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA),
+	{ GPIO_CFG(61, 1, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA),  ///16 
 		"qup_sda" },
 	{ GPIO_CFG(131, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA),
 		"qup_scl" },
@@ -164,9 +164,9 @@ static struct msm_gpio qup_i2c_gpios_io[] = {
 };
 
 static struct msm_gpio qup_i2c_gpios_hw[] = {
-	{ GPIO_CFG(60, 1, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA),
+	{ GPIO_CFG(60, 1, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA),
 		"qup_scl" },
-	{ GPIO_CFG(61, 1, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA),
+	{ GPIO_CFG(61, 1, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA),  ///16 
 		"qup_sda" },
 	{ GPIO_CFG(131, 2, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA),
 		"qup_scl" },
@@ -715,6 +715,11 @@ static struct resource smsc911x_resources[] = {
 		.end	= 0x90007fff,
 		.flags	= IORESOURCE_MEM,
 	},
+	[1] = {
+		.start	= MSM_GPIO_TO_INT(48),
+		.end	= MSM_GPIO_TO_INT(48),
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+	},
 };
 
 static struct platform_device smsc911x_device = {
@@ -728,12 +733,14 @@ static struct platform_device smsc911x_device = {
 };
 
 static struct msm_gpio smsc911x_gpios[] = {
+	{ GPIO_CFG(48, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_6MA),
+							 "smsc911x_irq"  },
 	{ GPIO_CFG(49, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_6MA),
 							 "eth_fifo_sel" },
 };
 
 #define ETH_FIFO_SEL_GPIO	49
-static void msm7x27a_cfg_smsc911x(void)
+static void msm_cfg_smsc911x(void)
 {
 	int res;
 
@@ -769,7 +776,7 @@ static struct msm_gpio uart2dm_gpios[] = {
 							"uart2dm_tx"    },
 };
 
-static void msm7x27a_cfg_uart2dm_serial(void)
+static void msm_cfg_uart2dm_serial(void)
 {
 	int ret;
 	ret = msm_gpios_request_enable(uart2dm_gpios,
@@ -778,7 +785,7 @@ static void msm7x27a_cfg_uart2dm_serial(void)
 		pr_err("%s: unable to enable gpios for uart2dm\n", __func__);
 }
 #else
-static void msm7x27a_cfg_uart2dm_serial(void) { }
+static void msm_cfg_uart2dm_serial(void) { }
 #endif
 
 static struct platform_device *rumi_sim_devices[] __initdata = {
@@ -809,16 +816,16 @@ static struct platform_device *surf_ffa_devices[] __initdata = {
 	&android_pmem_audio_device,
 	&msm_device_snd,
 	&msm_device_adspdec,
-	&msm_fb_device,
-	&msm_batt_device,
 	&smsc911x_device,
 #ifdef CONFIG_FB_MSM_MIPI_DSI
 	&mipi_dsi_ILI9487_panel_device,
 #endif
-	&msm_kgsl_3d0,
 	&asoc_msm_pcm,
 	&asoc_msm_dai0,
 	&asoc_msm_dai1,
+	&msm_fb_device,
+	&msm_kgsl_3d0,
+	&msm_batt_device,
 };
 
 static unsigned pmem_kernel_ebi1_size = PMEM_KERNEL_EBI1_SIZE;
@@ -1035,6 +1042,7 @@ static int mipi_dsi_panel_power(int on)
 
 	if (on){
 		if(first_on == 0){
+			msleep(1000);
 			gpio_set_value_cansleep(GPIO_LCDC_BL_EN, 0);
 			msleep(50);			
 			gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 1);
@@ -1047,13 +1055,11 @@ static int mipi_dsi_panel_power(int on)
 			first_on = 1;
 		}
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 1);
-		msleep(125);
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 1);
 	}else{
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 0);
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 0);
 	}	
-	msleep(100);
 
 	return rc;	
 }
@@ -1113,10 +1119,10 @@ static void __init msm7x27a_init_ebi2(void)
 }
 
 #ifdef CONFIG_TOUCHSCREEN_EKTF2K
-#define  EKTF2K_TS_INTERRUPT_GPIO 82
+#define  EKTF2K_TS_RESET_GPIO 30
 
 static struct regulator_bulk_data regs_elan_ktf2k[] = {
-	{ .supply = "ldo12",  .min_uV = 2850000, .max_uV = 2850000 },
+	{ .supply = "ldo12",  .min_uV = 2850000, .max_uV = 3300000 },
 	{ .supply = "smps3", .min_uV = 1800000, .max_uV = 1800000 },
 };
 
@@ -1141,14 +1147,16 @@ static int elan_ktf2k_ts_power(void)
 
 	msleep(5);
 
-	rc = gpio_tlmm_config(GPIO_CFG(EKTF2K_TS_INTERRUPT_GPIO, 0,
-				GPIO_CFG_INPUT, GPIO_CFG_PULL_UP,
-				GPIO_CFG_8MA), GPIO_CFG_ENABLE);
-	if (rc) {
-		pr_err("%s: gpio_tlmm_config for %d failed\n",
-				__func__, EKTF2K_TS_INTERRUPT_GPIO);
-	}
+	rc = gpio_tlmm_config(GPIO_CFG(EKTF2K_TS_RESET_GPIO, 0,
+				GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN,
+				GPIO_CFG_16MA), GPIO_CFG_ENABLE);
+		if (rc) {
+			pr_err("%s: gpio_tlmm_config for %d failed\n",
+				__func__, EKTF2K_TS_RESET_GPIO);
+		}
 
+		gpio_direction_output(EKTF2K_TS_RESET_GPIO, 1);
+		gpio_set_value_cansleep(EKTF2K_TS_RESET_GPIO, 1);
 	return rc;
 
 reg_free:
@@ -1161,7 +1169,7 @@ out:
 struct elan_ktf2k_i2c_platform_data ts_elan_ktf2k_data[] = {
         {
                 .version = 0x0001,
-                .abs_x_min = 0,
+		    .abs_x_min = 0,
                 .abs_x_max = ELAN_X_MAX,   
                 .abs_y_min = 0,
                 .abs_y_max = ELAN_Y_MAX,   
@@ -1277,13 +1285,50 @@ static void msm7x27a_ar6000_io_init(void)
 static int __init msm7x27a_init_ar6000pm(void) { return 0; }
 #endif
 
-static void __init msm7x27a_init_regulators(void)
+static void __init msm_init_regulators(void)
 {
 	int rc = platform_device_register(&msm_proccomm_regulator_dev);
 	if (rc)
 		pr_err("%s: could not register regulator device: %d\n",
 				__func__, rc);
 }
+
+static void __init msm_add_footswitch_devices(void)
+{
+	platform_add_devices(msm_footswitch_devices,
+			msm_num_footswitch_devices);
+}
+
+static void __init msm_add_platform_devices(void)
+{
+	platform_add_devices(surf_ffa_devices,
+			ARRAY_SIZE(surf_ffa_devices));
+}
+
+static void __init msm_uartdm_config(void)
+{
+	msm_cfg_uart2dm_serial();
+	msm_uart_dm1_pdata.wakeup_irq = gpio_to_irq(UART1DM_RX_GPIO);
+	msm_device_uart_dm1.dev.platform_data = &msm_uart_dm1_pdata;
+}
+
+static void __init msm_otg_gadget(void)
+{
+		msm_otg_pdata.swfi_latency =
+		msm7x27a_pm_data[
+		MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT].latency;
+		msm_device_otg.dev.platform_data = &msm_otg_pdata;
+		msm_device_gadget_peripheral.dev.platform_data =
+			&msm_gadget_pdata;
+}
+
+static void __init msm_pm_init(void)
+{
+	msm_pm_set_platform_data(msm7x27a_pm_data,
+				ARRAY_SIZE(msm7x27a_pm_data));
+	BUG_ON(msm_pm_boot_init(&msm_pm_boot_pdata));
+}
+
 //cellon,zhihua,start, 2013-1-6, for key backlight
 static struct pmic8029_led_platform_data leds_data[] = {
   {
@@ -1313,46 +1358,25 @@ static void __init msm7x2x_init(void)
 	msm7x2x_misc_init();
 
 	/* Initialize regulators first so that other devices can use them */
-	msm7x27a_init_regulators();
+	msm_init_regulators();
 
 	/* Common functions for SURF/FFA/RUMI3 */
 	msm_device_i2c_init();
-	msm7x27a_init_ebi2();
-	msm7x27a_cfg_uart2dm_serial();
-#ifdef CONFIG_SERIAL_MSM_HS
-	msm_uart_dm1_pdata.wakeup_irq = gpio_to_irq(UART1DM_RX_GPIO);
-	msm_device_uart_dm1.dev.platform_data = &msm_uart_dm1_pdata;
-#endif
+	msm_uartdm_config();
 
-#ifdef CONFIG_USB_MSM_OTG_72K
-	msm_otg_pdata.swfi_latency =
-		msm7x27a_pm_data
-		[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT].latency;
-	msm_device_otg.dev.platform_data = &msm_otg_pdata;
-#endif
-	msm_device_gadget_peripheral.dev.platform_data =
-		&msm_gadget_pdata;
-	msm7x27a_cfg_smsc911x();
-	platform_add_devices(msm_footswitch_devices,
-			msm_num_footswitch_devices);
-	platform_add_devices(surf_ffa_devices,
-			ARRAY_SIZE(surf_ffa_devices));
+	msm_otg_gadget();
+	msm_cfg_smsc911x();
+	msm_add_footswitch_devices();
+	msm_add_platform_devices();
 	/* Ensure ar6000pm device is registered before MMC/SDC */
 	msm7x27a_init_ar6000pm();
 	//Cellon add start, Eagle.Yin, 2012/12/25 for porting AR6005G code
 	msm7x27a_ar6000_io_init();
 	//Cellon add end, Eagle.Yin, 2012/12/25 for porting AR6005G code
-#ifdef CONFIG_MMC_MSM
 	msm7627a_init_mmc();
-#endif
 	msm_fb_add_devices();
-#ifdef CONFIG_USB_EHCI_MSM_72K
 	msm7x2x_init_host();
-#endif
-
-	msm_pm_set_platform_data(msm7x27a_pm_data,
-				ARRAY_SIZE(msm7x27a_pm_data));
-	BUG_ON(msm_pm_boot_init(&msm_pm_boot_pdata));
+	msm_pm_init();
 
 #if defined(CONFIG_I2C) && defined(CONFIG_GPIO_SX150X)
 	register_i2c_devices();
