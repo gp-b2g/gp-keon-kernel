@@ -853,6 +853,12 @@ inline void als_report_event(struct input_dev* dev,int32_t report_value)
 
 inline void ps_report_event(struct input_dev* dev,int32_t report_value)
 {
+	/* Sometimes, when receiving a call on Firefox OS report_value is -1
+	   when you take it, report_value must be 1 to prevent blank screen issues.
+	*/
+	if(report_value < 0)
+		report_value = 1;
+
     pStkPsData->ps_distance_last = report_value;
 	input_report_abs(dev, ABS_DISTANCE, report_value);
 	input_sync(dev);

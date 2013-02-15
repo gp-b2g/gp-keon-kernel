@@ -158,7 +158,6 @@ end:
 EXPORT_SYMBOL(msm_proc_comm);
 
 
-
 //Cellon add start, Eagle.Yin, 2012/12/25 for porting AR6005G code
 /*
         Read NV item

@@ -1318,7 +1318,7 @@ static int msm_pm_power_collapse_standalone(void)
 	ret = msm_spm_set_low_power_mode(MSM_SPM_MODE_CLOCK_GATING, false);
 	WARN_ON(ret);
 
-	return 0;
+	return !collapsed;
 }
 
 /*
@@ -1718,22 +1718,30 @@ static struct platform_suspend_ops msm_pm_ops = {
 /******************************************************************************
  * Restart Definitions
  *****************************************************************************/
+extern void rmt_storage_client_shutdown_complete(void);
 
 static uint32_t restart_reason = 0x776655AA;
 
 static void msm_pm_power_off(void)
 {
+	printk("%s\n", __func__);
+	rmt_storage_client_shutdown_complete();
 	msm_rpcrouter_close();
 	msm_proc_comm(PCOM_POWER_DOWN, 0, 0);
+	printk("%s sent\n", __func__);
 	for (;;)
 		;
 }
 
 static void msm_pm_restart(char str, const char *cmd)
 {
+	printk("%s\n", __func__);
+	rmt_storage_client_shutdown_complete();
 	msm_rpcrouter_close();
-	msm_proc_comm(PCOM_RESET_CHIP_IMM, &restart_reason, 0);
 
+	printk("restart str %c cmd %s",str,cmd);
+	msm_proc_comm(PCOM_RESET_CHIP_IMM, &restart_reason, 0);
+	printk("%s sent\n", __func__);
 	for (;;)
 		;
 }
@@ -1844,7 +1852,6 @@ static int __init msm_pm_init(void)
 
 	BUG_ON(msm_pm_modes == NULL);
 
-	atomic_set(&msm_pm_init_done, 1);
 	suspend_set_ops(&msm_pm_ops);
 
 	msm_pm_mode_sysfs_add();
@@ -1858,6 +1865,7 @@ static int __init msm_pm_init(void)
 	}
 #endif
 
+	atomic_set(&msm_pm_init_done, 1);
 	return 0;
 }
 

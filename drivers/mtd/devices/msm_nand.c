@@ -219,7 +219,7 @@ static struct nand_ecclayout msm_onenand_oob_64 = {
 		{34, 3}, {46, 2}, {50, 3}, {62, 2}
 	}
 };
-static uint8_t  device_name[20];
+
 static void *msm_nand_get_dma_buffer(struct msm_nand_chip *chip, size_t size)
 {
 	unsigned int bitmask, free_bitmask, old_bitmask;
@@ -746,12 +746,10 @@ uint32_t flash_onfi_probe(struct msm_nand_chip *chip)
 				supported_flash.density  =
 					onfi_param_page_ptr->
 					number_of_blocks_per_logical_unit
-					* supported_flash.blksize
-					* onfi_param_page_ptr-> number_of_logical_units;
+					* supported_flash.blksize;
 				supported_flash.ecc_correctability =
 					onfi_param_page_ptr->
 					number_of_bits_ecc_correctability;
-                strncpy(device_name, onfi_param_page_ptr->device_model, 20);
 
 				pr_info("ONFI probe : Found an ONFI "
 					"compliant device %s\n",
@@ -6721,16 +6719,8 @@ int msm_nand_scan(struct mtd_info *mtd, int maxchips)
 			supported_flash.pagesize = 1024 << (devcfg & 0x3);
 			supported_flash.blksize = (64 * 1024) <<
 							((devcfg >> 4) & 0x3);
-			supported_flash.oobsize = (8 << ((devcfg >> 2) & 0x3)) *
+			supported_flash.oobsize = (8 << ((devcfg >> 2) & 1)) *
 				(supported_flash.pagesize >> 9);
-
-			if ((supported_flash.oobsize > 64) &&
-				(supported_flash.pagesize == 2048)) {
-				pr_info("msm_nand: Found a 2K page device with"
-					" %d oobsize - changing oobsize to 64 "
-					"bytes.\n", supported_flash.oobsize);
-				supported_flash.oobsize = 64;
-			}
 		} else {
 			supported_flash.flash_id = flash_id;
 			supported_flash.density = flashdev->chipsize << 20;

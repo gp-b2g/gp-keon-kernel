@@ -38,7 +38,7 @@ static char ILI9487_command3[] = {
 	};
 
 static char ILI9487_command4[] = {
-	0x3A, 0x66
+	0x3A, 0x77
 	};
 
 static char ILI9487_command5[] = {
@@ -107,27 +107,27 @@ static char cabc[2] = {
 };
 
 static struct dsi_cmd_desc ILI9487_cmd_display_on_cmds[] = {
-	{DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(ILI9487_command1), ILI9487_command1},
+	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command1), ILI9487_command1},
 	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command2), ILI9487_command2},
-	{DTYPE_DCS_LWRITE, 1, 0, 0, 10, sizeof(ILI9487_command3), ILI9487_command3},
-	{DTYPE_DCS_LWRITE, 1, 0, 0, 30, sizeof(ILI9487_command4), ILI9487_command4},
+	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command3), ILI9487_command3},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command4), ILI9487_command4},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command5), ILI9487_command5},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command6), ILI9487_command6},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command7), ILI9487_command7},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command8), ILI9487_command8},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command9), ILI9487_command9},
-	{DTYPE_DCS_LWRITE, 1, 0, 0, 10, sizeof(ILI9487_command10), ILI9487_command10},
+	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command10), ILI9487_command10},
 	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command11), ILI9487_command11},
 	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command12), ILI9487_command12},
 	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command13), ILI9487_command13},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command14), ILI9487_command14},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command15), ILI9487_command15},
-	{DTYPE_DCS_WRITE, 1, 0, 0, 200, sizeof(ILI9487_command17), ILI9487_command17},
+	{DTYPE_DCS_WRITE, 1, 0, 0, 50, sizeof(ILI9487_command17), ILI9487_command17},
 	{DTYPE_DCS_WRITE, 1, 0, 0, 120, sizeof(ILI9487_command18), ILI9487_command18},
 	{DTYPE_DCS_WRITE, 1, 0, 0, 10, sizeof(ILI9487_command19), ILI9487_command19},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(display_bringtness), display_bringtness},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(crtl_display), crtl_display},
-	{DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(cabc), cabc},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(cabc), cabc},
 };
 
 static char display_off[2] = {0x28, 0x00};
@@ -185,6 +185,10 @@ static int mipi_ILI9487_lcd_on(struct platform_device *pdev)
 		mfd->bl_level = 0;
 		mipi_ILI9487_set_backlight(mfd);
 		msleep(125);
+		gpio_set_value_cansleep(4, 1);
+		gpio_set_value_cansleep(4, 0);
+		gpio_set_value_cansleep(4, 1);
+		gpio_set_value_cansleep(97, 1);
 	}
 
 	mipi_set_tx_power_mode(1);
@@ -212,9 +216,6 @@ static int mipi_ILI9487_lcd_off(struct platform_device *pdev)
 		return -ENODEV;
 	if (mfd->key != MFD_KEY)
 		return -EINVAL;
-	mfd->bl_level = 0;
-	mipi_ILI9487_set_backlight(mfd);
-	msleep(20);
 	mipi_set_tx_power_mode(1);
 	mipi_dsi_cmds_tx(mfd,&ILI9487_tx_buf,
 		ILI9487_display_off_cmds,

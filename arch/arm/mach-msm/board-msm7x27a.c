@@ -65,7 +65,7 @@
 #endif
 
 #define PMEM_KERNEL_EBI1_SIZE	0x3A000
-#define MSM_PMEM_AUDIO_SIZE	0x1F4000
+#define MSM_PMEM_AUDIO_SIZE	0x5B000
 
 #define PS31XX_INT         17                                                                                                              
 #define AKM_GPIO_DRDY      26                                                                                                                
@@ -113,9 +113,6 @@ static struct platform_device msm_wlan_ar6000_pm_device = {
 
 #if defined(CONFIG_I2C) && defined(CONFIG_GPIO_SX150X)
 static struct i2c_board_info core_exp_i2c_info[] __initdata = {
-	{
-		I2C_BOARD_INFO("sx1509q", 0x3e),
-	},
 #ifdef CONFIG_BOSCH_BMA2X2
 	{
 		I2C_BOARD_INFO("bma2x2", 0x18),
@@ -496,7 +493,6 @@ static int msm_fb_detect_panel(const char *name)
 	
 	return ret;
 }
-
 // Cellon modify end, Zepeng Wu, 2012/12/24, for LCD
 
 static struct msm_fb_platform_data msm_fb_pdata = {
@@ -715,11 +711,6 @@ static struct resource smsc911x_resources[] = {
 		.end	= 0x90007fff,
 		.flags	= IORESOURCE_MEM,
 	},
-	[1] = {
-		.start	= MSM_GPIO_TO_INT(48),
-		.end	= MSM_GPIO_TO_INT(48),
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	},
 };
 
 static struct platform_device smsc911x_device = {
@@ -733,8 +724,6 @@ static struct platform_device smsc911x_device = {
 };
 
 static struct msm_gpio smsc911x_gpios[] = {
-	{ GPIO_CFG(48, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_6MA),
-							 "smsc911x_irq"  },
 	{ GPIO_CFG(49, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_6MA),
 							 "eth_fifo_sel" },
 };
@@ -816,6 +805,7 @@ static struct platform_device *surf_ffa_devices[] __initdata = {
 	&android_pmem_audio_device,
 	&msm_device_snd,
 	&msm_device_adspdec,
+	&msm_fb_device,
 	&smsc911x_device,
 #ifdef CONFIG_FB_MSM_MIPI_DSI
 	&mipi_dsi_ILI9487_panel_device,
@@ -823,7 +813,6 @@ static struct platform_device *surf_ffa_devices[] __initdata = {
 	&asoc_msm_pcm,
 	&asoc_msm_dai0,
 	&asoc_msm_dai1,
-	&msm_fb_device,
 	&msm_kgsl_3d0,
 	&msm_batt_device,
 };
@@ -942,7 +931,7 @@ static struct msm_panel_common_pdata mdp_pdata = {
 
 
 #ifdef CONFIG_FB_MSM
-#define GPIO_LCDC_BRDG_PD	3
+#define GPIO_LCDC_BRDG_PD	97
 #define GPIO_LCDC_BRDG_RESET_N	4
 #define GPIO_LCDC_BL_EN	96
 
@@ -964,15 +953,7 @@ enum {
 
 static int msm_fb_get_lane_config(void)
 {
-	int rc = DSI_TWO_LANES;
-
-	if (machine_is_msm7625a_surf() || machine_is_msm7625a_ffa()) {
-		rc = DSI_SINGLE_LANE;
-		pr_info("DSI Single Lane\n");
-	} else {
-		pr_info("DSI Two Lanes\n");
-	}
-	return rc;
+	return DSI_TWO_LANES;
 }
 
 static int msm_fb_dsi_client_reset(void)
@@ -1018,6 +999,7 @@ static int msm_fb_dsi_client_reset(void)
 	} else {
 		goto gpio_error;
 	}
+
 gpio_error2:
 	pr_err("Failed GPIO bridge pd\n");
 	gpio_free(GPIO_LCDC_BRDG_PD);
@@ -1033,9 +1015,12 @@ static int first_on = 0;
 static int mipi_dsi_panel_power(int on)
 {
 	int  rc = 0;
+
+	printk("%s: on = %d\n", __func__, on);
 	
 	/* I2C-controlled GPIO Expander -init of the GPIOs very late */
 	if (!dsi_gpio_initialized) {
+
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 1);
 		dsi_gpio_initialized = 1;
 	}
@@ -1056,12 +1041,16 @@ static int mipi_dsi_panel_power(int on)
 		}
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 1);
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 1);
-	}else{
+	}
+	else{
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 0);
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 0);
-	}	
+	}
 
-	return rc;	
+	gpio_free(GPIO_LCDC_BRDG_RESET_N);
+	gpio_free(GPIO_LCDC_BRDG_PD);
+
+	return rc;
 }
 #endif
 
@@ -1119,7 +1108,7 @@ static void __init msm7x27a_init_ebi2(void)
 }
 
 #ifdef CONFIG_TOUCHSCREEN_EKTF2K
-#define  EKTF2K_TS_RESET_GPIO 30
+#define  EKTF2K_TS_INTERRUPT_GPIO 82
 
 static struct regulator_bulk_data regs_elan_ktf2k[] = {
 	{ .supply = "ldo12",  .min_uV = 2850000, .max_uV = 3300000 },
@@ -1143,20 +1132,18 @@ static int elan_ktf2k_ts_power(void)
 				__func__, rc);
 		goto reg_free;
 	}
-		regulator_bulk_enable(ARRAY_SIZE(regs_elan_ktf2k), regs_elan_ktf2k);
+	regulator_bulk_enable(ARRAY_SIZE(regs_elan_ktf2k), regs_elan_ktf2k);
 
 	msleep(5);
 
-	rc = gpio_tlmm_config(GPIO_CFG(EKTF2K_TS_RESET_GPIO, 0,
-				GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN,
+	rc = gpio_tlmm_config(GPIO_CFG(EKTF2K_TS_INTERRUPT_GPIO, 0,
+				GPIO_CFG_INPUT, GPIO_CFG_PULL_UP,
 				GPIO_CFG_16MA), GPIO_CFG_ENABLE);
-		if (rc) {
-			pr_err("%s: gpio_tlmm_config for %d failed\n",
-				__func__, EKTF2K_TS_RESET_GPIO);
-		}
+	if (rc) {
+		pr_err("%s: gpio_tlmm_config for %d failed\n",
+				__func__, EKTF2K_TS_INTERRUPT_GPIO);
+	}
 
-		gpio_direction_output(EKTF2K_TS_RESET_GPIO, 1);
-		gpio_set_value_cansleep(EKTF2K_TS_RESET_GPIO, 1);
 	return rc;
 
 reg_free:
@@ -1169,7 +1156,7 @@ out:
 struct elan_ktf2k_i2c_platform_data ts_elan_ktf2k_data[] = {
         {
                 .version = 0x0001,
-		    .abs_x_min = 0,
+                .abs_x_min = 0,
                 .abs_x_max = ELAN_X_MAX,   
                 .abs_y_min = 0,
                 .abs_y_max = ELAN_Y_MAX,   
@@ -1263,9 +1250,7 @@ static void __init msm7627a_rumi3_init(void)
 #if defined(CONFIG_BT) && defined(CONFIG_MARIMBA_CORE)
 static int __init msm7x27a_init_ar6000pm(void)
 {
-	//Cellon add start, Eagle.Yin, 2012/12/25 for porting AR6005G code
 	msm_wlan_ar6000_pm_device.dev.platform_data = &ar600x_wlan_power;
-	//Cellon add end, Eagle.Yin, 2012/12/25 for porting AR6005G code
 	return platform_device_register(&msm_wlan_ar6000_pm_device);
 }
 //Cellon add start, Eagle.Yin, 2012/12/25 for porting AR6005G code
@@ -1332,7 +1317,7 @@ static void __init msm_pm_init(void)
 //cellon,zhihua,start, 2013-1-6, for key backlight
 static struct pmic8029_led_platform_data leds_data[] = {
   {
-    .name = "button-backlight",   //"keyboard-backlight",
+    .name = "button-backlight",
     .which = PM_MPP_5,
     .type = PMIC8029_DRV_TYPE_CUR,
     .max.cur = PM_MPP__I_SINK__LEVEL_40mA,
@@ -1368,6 +1353,7 @@ static void __init msm7x2x_init(void)
 	msm_cfg_smsc911x();
 	msm_add_footswitch_devices();
 	msm_add_platform_devices();
+	msm_init_pmic_vibrator();
 	/* Ensure ar6000pm device is registered before MMC/SDC */
 	msm7x27a_init_ar6000pm();
 	//Cellon add start, Eagle.Yin, 2012/12/25 for porting AR6005G code
@@ -1400,12 +1386,8 @@ static void __init msm7x2x_init(void)
 	platform_device_register(&hs_pdev);
 
 	/* configure it as a pdm function*/
-	platform_device_register(&pmic_mpp_leds_pdev); 
+	platform_device_register(&pmic_mpp_leds_pdev);
 
-#ifdef CONFIG_MSM_RPC_VIBRATOR
-	if (machine_is_msm7x27a_ffa() || machine_is_msm7625a_ffa())
-		msm_init_pmic_vibrator();
-#endif
 	/*7x25a kgsl initializations*/
 	msm7x25a_kgsl_3d0_init();
 }

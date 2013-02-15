@@ -251,9 +251,7 @@ static struct clk_lookup msm_clocks_7x27[] = {
 	CLK_LOOKUP("core_clk",		ebi_usb_clk.c,	"msm_otg"),
 	CLK_LOOKUP("ebi1_vfe_clk",	ebi_vfe_clk.c,	NULL),
 	CLK_LOOKUP("mem_clk",		ebi_adm_clk.c,	"msm_dmov"),
-	
 	CLK_LOOKUP("cam_clk",       cam_m_clk.c,    "0-005a"), ///crystal add
-
 };
 
 struct clock_init_data msm7x27_clock_init_data __initdata = {

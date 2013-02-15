@@ -370,7 +370,7 @@ static void vfe32_stop(void)
 	unsigned long flags;
 
 	atomic_set(&vfe32_ctrl->vstate, 0);
-
+	mutex_lock(&vfe32_ctrl->vfe_lock);
 	/* for reset hw modules, and send msg when reset_irq comes.*/
 	spin_lock_irqsave(&vfe32_ctrl->stop_flag_lock, flags);
 	vfe32_ctrl->stop_ack_pending = TRUE;
@@ -422,6 +422,7 @@ static void vfe32_stop(void)
 	to the command register using the barrier */
 	msm_io_w_mb(VFE_RESET_UPON_STOP_CMD,
 		vfe32_ctrl->vfebase + VFE_GLOBAL_RESET);
+	mutex_unlock(&vfe32_ctrl->vfe_lock);
 }
 
 static void vfe32_subdev_notify(int id, int path)
@@ -745,6 +746,7 @@ static int vfe32_zsl(void)
 	struct msm_sync *sync = vfe_syncdata;
 	uint32_t irq_comp_mask = 0;
 	/* capture command is valid for both idle and active state. */
+	mutex_lock(&vfe32_ctrl->vfe_lock);
 	irq_comp_mask	=
 		msm_io_r(vfe32_ctrl->vfebase + VFE_IRQ_COMP_MASK);
 
@@ -808,6 +810,7 @@ static int vfe32_zsl(void)
 
 	msm_io_w(1, vfe32_ctrl->vfebase + 0x18C);
 	msm_io_w(1, vfe32_ctrl->vfebase + 0x188);
+	mutex_unlock(&vfe32_ctrl->vfe_lock);
 	return 0;
 }
 static int vfe32_capture_raw(uint32_t num_frames_capture)
@@ -904,6 +907,7 @@ static int vfe32_start(void)
 	uint32_t irq_comp_mask = 0;
 	struct msm_sync *sync = vfe_syncdata;
 
+	mutex_lock(&vfe32_ctrl->vfe_lock);
 	irq_comp_mask	=
 		msm_io_r(vfe32_ctrl->vfebase + VFE_IRQ_COMP_MASK);
 
@@ -968,6 +972,7 @@ static int vfe32_start(void)
 	msm_camio_bus_scale_cfg(
 		sync->sdata->pdata->cam_bus_scale_table, S_PREVIEW);
 	vfe32_start_common();
+	mutex_unlock(&vfe32_ctrl->vfe_lock);
 	return 0;
 }
 
@@ -2770,6 +2775,8 @@ static void vfe32_process_error_irq(uint32_t errStatus)
 	if (errStatus & VFE32_IMASK_CAMIF_ERROR) {
 		pr_err("vfe32_irq: camif errors\n");
 		reg_value = msm_io_r(vfe32_ctrl->vfebase + VFE_CAMIF_STATUS);
+		v4l2_subdev_notify(&vfe32_ctrl->subdev,
+			NOTIFY_VFE_CAMIF_ERROR, (void *)NULL);
 		pr_err("camifStatus  = 0x%x\n", reg_value);
 		vfe32_send_isp_msg(vfe32_ctrl, MSG_ID_CAMIF_ERROR);
 	}
@@ -3877,6 +3884,7 @@ int msm_vfe_subdev_init(struct v4l2_subdev *sd, void *data,
 	spin_lock_init(&vfe32_ctrl->cs_ack_lock);
 	spin_lock_init(&vfe32_ctrl->comp_stats_ack_lock);
 	spin_lock_init(&vfe32_ctrl->sd_notify_lock);
+	mutex_init(&vfe32_ctrl->vfe_lock);
 	INIT_LIST_HEAD(&vfe32_ctrl->tasklet_q);
 
 	vfe32_ctrl->update_linear = false;

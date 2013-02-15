@@ -3959,18 +3959,20 @@ static int msm_sync_init(struct msm_sync *sync,
 	int rc = 0;
 	struct msm_sensor_ctrl sctrl;
 	sync->sdata = pdev->dev.platform_data;
+
 	msm_queue_init(&sync->event_q, "event");
 	msm_queue_init(&sync->frame_q, "frame");
 	msm_queue_init(&sync->pict_q, "pict");
 	msm_queue_init(&sync->vpe_q, "vpe");
 
 	wake_lock_init(&sync->wake_lock, WAKE_LOCK_IDLE, "msm_camera");
+
 	rc = msm_camio_probe_on(pdev);
 	if (rc < 0) {
 		wake_lock_destroy(&sync->wake_lock);
 		return rc;
 	}
-	rc = sensor_probe(sync->sdata, &sctrl); ///LE 0
+	rc = sensor_probe(sync->sdata, &sctrl);
 	if (rc >= 0) {
 		sync->pdev = pdev;
 		sync->sctrl = sctrl;
@@ -3983,6 +3985,7 @@ static int msm_sync_init(struct msm_sync *sync,
 		wake_lock_destroy(&sync->wake_lock);
 		return rc;
 	}
+
 	sync->opencnt = 0;
 	sync->core_powered_on = 0;
 	sync->ignore_qcmd = false;
@@ -4072,10 +4075,12 @@ int msm_camera_drv_start(struct platform_device *dev,
 	struct msm_cam_device *pmsm = NULL;
 	struct msm_sync *sync;
 	int rc = -ENODEV;
+
 	if (camera_node >= MSM_MAX_CAMERA_SENSORS) {
 		pr_err("%s: too many camera sensors\n", __func__);
 		return rc;
 	}
+
 	if (!msm_class) {
 		/* There are three device nodes per sensor */
 		rc = alloc_chrdev_region(&msm_devno, 0,
@@ -4095,11 +4100,13 @@ int msm_camera_drv_start(struct platform_device *dev,
 			return rc;
 		}
 	}
+
 	pmsm = kzalloc(sizeof(struct msm_cam_device) * 4 +
 			sizeof(struct msm_sync), GFP_ATOMIC);
-	if (!pmsm){
-		return -ENOMEM;}
+	if (!pmsm)
+		return -ENOMEM;
 	sync = (struct msm_sync *)(pmsm + 4);
+
 	rc = msm_sync_init(sync, dev, sensor_probe);
 	if (rc < 0) {
 		kfree(pmsm);

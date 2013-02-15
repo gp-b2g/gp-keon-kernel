@@ -1133,8 +1133,6 @@ static int elan_ktf2k_ts_probe(struct i2c_client *client,
 	ts->input_dev->name = "elan-touchscreen"; 
 
 	set_bit(BTN_TOUCH, ts->input_dev->keybit);	
-	set_bit(KEY_BACK, ts->input_dev->keybit);
-	set_bit(KEY_MENU, ts->input_dev->keybit);
 	set_bit(KEY_HOME, ts->input_dev->keybit);
 	
 	input_set_abs_params(ts->input_dev, ABS_X, 0,  X_RESOLUTION, 0, 0);
@@ -1318,8 +1316,10 @@ static const struct i2c_device_id elan_ktf2k_ts_id[] = {
 static struct i2c_driver ektf2k_ts_driver = {
 	.probe		= elan_ktf2k_ts_probe,
 	.remove		= elan_ktf2k_ts_remove,
+#ifndef CONFIG_HAS_EARLYSUSPEND
 	.suspend	= elan_ktf2k_ts_suspend,
 	.resume		= elan_ktf2k_ts_resume,
+#endif
 	.id_table	= elan_ktf2k_ts_id,
 	.driver		= {
 		.name = ELAN_KTF2K_NAME,

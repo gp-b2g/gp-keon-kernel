@@ -13,7 +13,6 @@
  *
  */
 
-#include <linux/delay.h>
 #include <linux/earlysuspend.h>
 #include <linux/module.h>
 #include <linux/wait.h>

@@ -22,7 +22,7 @@
 #include <mach/camera.h>
 #include <media/msm_camera.h>
 #include "s5k4e1.h"
-#define  printkcry  printk
+
 /* 16bit address - 8 bit context register structure */
 #define Q8	0x00000100
 #define Q10	0x00000400
@@ -85,7 +85,7 @@ static uint16_t prev_line_length_pck;
 static uint16_t prev_frame_length_lines;
 static uint16_t snap_line_length_pck;
 static uint16_t snap_frame_length_lines;
-#if 1
+
 static int s5k4e1_i2c_rxdata(unsigned short saddr,
 		unsigned char *rxdata, int length)
 {
@@ -109,32 +109,7 @@ static int s5k4e1_i2c_rxdata(unsigned short saddr,
 	}
 	return 0;
 }
-#endif
-#if 1
-static int s5k4e1_i2c_2rxdata(unsigned short saddr,
-		unsigned char *rxdata, int length)
-{
-	struct i2c_msg msgs[] = {
-		{
-			.addr  = saddr,
-			.flags = 0,
-			.len   = 2,
-			.buf   = rxdata,
-		},
-		{
-			.addr  = saddr,
-			.flags = I2C_M_RD,
-			.len   = 2,
-			.buf   = rxdata,
-		},
-	};
-	if (i2c_transfer(s5k4e1_client->adapter, msgs, 2) < 0) {
-		CDBG("s5k4e1_i2c_rxdata faild 0x%x\n", saddr);
-		return -EIO;
-	}
-	return 0;
-}
-#endif 
+
 static int32_t s5k4e1_i2c_txdata(unsigned short saddr,
 		unsigned char *txdata, int length)
 {
@@ -153,8 +128,7 @@ static int32_t s5k4e1_i2c_txdata(unsigned short saddr,
 
 	return 0;
 }
-#if 1
-////s5k4e1_i2c_2rxdata(s5k4e1_client->addr, buf, rlen);
+
 static int32_t s5k4e1_i2c_read(unsigned short raddr,
 		unsigned short *rdata, int rlen)
 {
@@ -177,7 +151,7 @@ static int32_t s5k4e1_i2c_read(unsigned short raddr,
 
 	return rc;
 }
-#endif
+
 static int32_t s5k4e1_i2c_write_b_sensor(unsigned short waddr, uint8_t bdata)
 {
 	int32_t rc = -EFAULT;
@@ -195,26 +169,7 @@ static int32_t s5k4e1_i2c_write_b_sensor(unsigned short waddr, uint8_t bdata)
 	}
 	return rc;
 }
-#if 1
-static int32_t s5k4e1_i2c_write_2b_sensor(unsigned short waddr, unsigned short bdata)
-{
-	int32_t rc = -EFAULT;
-	unsigned char buf[4];
 
-	memset(buf, 0, sizeof(buf));
-	buf[0] = (waddr & 0xFF00) >> 8;
-	buf[1] = (waddr & 0x00FF);
-	buf[2] =(bdata & 0xFF00) >> 8;
-	buf[3] = (bdata & 0x00FF);
-	CDBG("i2c_write_b addr = 0x%x, val = 0x%x\n", waddr, bdata);
-	rc = s5k4e1_i2c_txdata(s5k4e1_client->addr, buf,4);
-	if (rc < 0) {
-		CDBG("i2c_write_b failed, addr = 0x%x, val = 0x%x!\n",
-				waddr, bdata);
-	}
-	return rc;
-}
-#endif 
 static int32_t s5k4e1_i2c_write_b_table(struct s5k4e1_i2c_reg_conf const
 		*reg_conf_tbl, int num)
 {
@@ -222,11 +177,8 @@ static int32_t s5k4e1_i2c_write_b_table(struct s5k4e1_i2c_reg_conf const
 	int32_t rc = -EIO;
 
 	for (i = 0; i < num; i++) {
-	///	rc = s5k4e1_i2c_write_b_sensor(reg_conf_tbl->waddr,
-	///			reg_conf_tbl->wdata);
-			rc =s5k4e1_i2c_write_2b_sensor(reg_conf_tbl->waddr,
-				reg_conf_tbl->wdata);	
-				
+		rc = s5k4e1_i2c_write_b_sensor(reg_conf_tbl->waddr,
+				reg_conf_tbl->wdata);
 		if (rc < 0)
 			break;
 		reg_conf_tbl++;
@@ -543,19 +495,17 @@ static int32_t s5k4e1_sensor_setting(int update_type, int rt)
 
 	s5k4e1_stop_stream();
 	msleep(30);
-	printkcry(" ===c======%d %s  %s\n  ",__LINE__,__func__,__FILE__);
+
 	if (update_type == REG_INIT) {
-			printkcry(" ===c======%d %s  %s\n  ",__LINE__,__func__,__FILE__);
 		s5k4e1_reset_sensor();
-///		s5k4e1_i2c_write_b_table(s5k4e1_regs.reg_mipi,
-///				s5k4e1_regs.reg_mipi_size);
+		s5k4e1_i2c_write_b_table(s5k4e1_regs.reg_mipi,
+				s5k4e1_regs.reg_mipi_size);
 		s5k4e1_i2c_write_b_table(s5k4e1_regs.rec_settings,
 				s5k4e1_regs.rec_size);
-///		s5k4e1_i2c_write_b_table(s5k4e1_regs.reg_pll_p,
-///				s5k4e1_regs.reg_pll_p_size);
+		s5k4e1_i2c_write_b_table(s5k4e1_regs.reg_pll_p,
+				s5k4e1_regs.reg_pll_p_size);
 		CSI_CONFIG = 0;
 	} else if (update_type == UPDATE_PERIODIC) {
-			printkcry(" ===c======%d %s  %s\n  ",__LINE__,__func__,__FILE__);
 		if (rt == RES_PREVIEW)
 			s5k4e1_i2c_write_b_table(s5k4e1_regs.reg_prev,
 					s5k4e1_regs.reg_prev_size);
@@ -574,47 +524,9 @@ static int32_t s5k4e1_sensor_setting(int update_type, int rt)
 			msleep(20);
 			CSI_CONFIG = 1;
 		}
-	/***	
-	static struct msm_camera_csi_params s5k5cag_csi_params = {
-	.data_format = CSI_8BIT,
-	.lane_cnt    = 1,
-	.lane_assign = 0xe4,
-	.dpcm_scheme = 0,
-	.settle_cnt  = 0x14,
-};
-	
-		{
-		.x_output = 2048,
-		.y_output = 1536,
-		.line_length_pclk = 2056,
-		.frame_length_lines = 1544,
-		.vt_pixel_clk = 47616960,
-		.op_pixel_clk = 419880960,
-		.binning_factor = 0,
-	},
-	{
-		.x_output = 1024,
-		.y_output = 768,
-		.line_length_pclk = 2056,
-		.frame_length_lines = 1544,
-		.vt_pixel_clk = 47616960,
-		.op_pixel_clk = 419880960,
-		.binning_factor = 0,
-	},	*/
-		msm_camio_vfe_clk_rate_set(192000000);
-			s5k4e1_csi_params.data_format =CSI_8BIT,/// CSI_10BIT;
-			s5k4e1_csi_params.lane_cnt = 1;
-			s5k4e1_csi_params.lane_assign = 0xe4;
-			s5k4e1_csi_params.dpcm_scheme = 0;
-			s5k4e1_csi_params.settle_cnt = 0x14, ///24;
-			rc = msm_camio_csi_config(&s5k4e1_csi_params);
-			msleep(20);
-			CSI_CONFIG = 1;
-		
 		s5k4e1_start_stream();
 		msleep(30);
 	}
-		printkcry(" ===c======%d %s  %s\n  ",__LINE__,__func__,__FILE__);
 	return rc;
 }
 
@@ -708,119 +620,39 @@ static int32_t s5k4e1_power_down(void)
 	s5k4e1_stop_stream();
 	return 0;
 }
-#if 1
+
 static int s5k4e1_probe_init_done(const struct msm_camera_sensor_info *data)
 {
 	CDBG("probe done\n");
 	gpio_free(data->sensor_reset);
 	return 0;
 }
-#endif 
+
 static int s5k4e1_probe_init_sensor(const struct msm_camera_sensor_info *data)
 {
 	int32_t rc = 0;
 	uint16_t regaddress1 = 0x0000;
-	///uint16_t regaddress2 = 0x0001;
+	uint16_t regaddress2 = 0x0001;
 	uint16_t chipid1 = 0;
-	//uint16_t chipid2 = 0;
-	char idrd[2]={0x0f,0x12};
-		char idrd2[2]={0x12,0x0f};
-	printkcry(" =========%d %s  %d data->sensor_reset:%d\n",__LINE__,__func__,chipid1,data->sensor_reset);
+	uint16_t chipid2 = 0;
+
 	CDBG("%s: %d\n", __func__, __LINE__);
 	CDBG(" s5k4e1_probe_init_sensor is called\n");
 
-/*	rc = gpio_request(data->sensor_reset, "s5k4e1");
-		printkcry(" =========id1 %d %s  %d",__LINE__,__func__,chipid1);
+	rc = gpio_request(data->sensor_reset, "s5k4e1");
 	CDBG(" s5k4e1_probe_init_sensor\n");
 	if (!rc) {
-			printkcry(" =========id1 %d %s  %d",__LINE__,__func__,chipid1);
 		CDBG("sensor_reset = %d\n", rc);
 		gpio_direction_output(data->sensor_reset, 0);
 		msleep(50);
 		gpio_set_value_cansleep(data->sensor_reset, 1);
 		msleep(20);
-	} else 	{printkcry(" =========id1 %d %s  %d",__LINE__,__func__,chipid1);
-		goto gpio_req_fail;}
-*/
-	gpio_request(5, "s5k4e1"); ///pd
-	if (1) {
-		CDBG("sensor_reset = %d\n", rc);
-		gpio_direction_output(5, 0);
-		msleep(50);
-		gpio_set_value_cansleep(5, 1);
-		msleep(20);
-		gpio_direction_output(5, 0);
-		msleep(50);
-		gpio_set_value_cansleep(5, 1);
 	} else
-		;///goto gpio_req_fail;
-			///gpio_free(6);
-			gpio_request(6, "s5kRST"); ///pd
+		goto gpio_req_fail;
 
-		CDBG("sensor_reset = %d\n", rc);
-		gpio_direction_output(6, 0);
-		msleep(50);
-		gpio_set_value_cansleep(6, 1);
-		msleep(20);
-
-	gpio_direction_output(6, 0);
-		msleep(50);
-		gpio_set_value_cansleep(6, 1);
-		msleep(20);
-		
-	/*		gpio_direction_output(6, 0);
-		mdelay(2000);
-		gpio_set_value_cansleep(6, 1);
-		mdelay(2000);
-			gpio_direction_output(6, 0);
-		mdelay(2000);
-		gpio_set_value_cansleep(6, 1);
-		mdelay(2000);
-			gpio_direction_output(6, 0);
-		mdelay(2000);
-		gpio_set_value_cansleep(6, 1);
-		mdelay(2000);*/
-	gpio_free(5);
-	gpio_free(6);
 	msleep(20);
 
-/***
-Write  0x0028 0xD000
-
-Write  0x002A 0x1006
-
-Read   0x0F12 
-0x002c,0x0000,MSM_CAMERA_I2C_WORD_DATA);
-	msm_camera_i2c_write(s_ctrl->sensor_i2c_client,0x002e,0x0040,MSM_CAMERA_I2C_WORD_D
-s5k4e1_i2c_write_2b_sensor( 0x002c,0x0000);
-s5k4e1_i2c_write_2b_sensor(  0x002e ,0x0040);
-*/
-	///return 0;
-	
-	
-s5k4e1_i2c_write_2b_sensor( 0x0028, 0xD000);
-s5k4e1_i2c_write_2b_sensor(  0x002A ,0x1006);
-
-s5k4e1_i2c_2rxdata(s5k4e1_client->addr, idrd, 2);
-printkcry(" =========id1 %d %s  idjj1 %x %x ",__LINE__,__func__,idrd[0],idrd[1]);
-
-/*
-s5k4e1_i2c_write_2b_sensor( 0x0028, 0xD000);
-s5k4e1_i2c_write_2b_sensor(  0x002A ,0x1006);
-s5k4e1_i2c_2rxdata(s5k4e1_client->addr, idrd2, 2);*/
-printkcry(" =========id1 %d %s  idjj2 %x %x ",__LINE__,__func__,idrd2[0],idrd2[1]);
-/*
-s5k4e1_i2c_write_2b_sensor( 0x002c,0x0000);
-s5k4e1_i2c_write_2b_sensor(  0x002e ,0x0040);
-s5k4e1_i2c_2rxdata(s5k4e1_client->addr, idrd, 2);*/
-printkcry(" =========id1 %d %s  idjj3 %x %x ",__LINE__,__func__,idrd[0],idrd[1]);
-
-	///s5k4e1_i2c_read(0x0F12, &chipid1, 1);
-	s5k4e1_i2c_read(regaddress1, &chipid1, 1); 
-		return 0;
-/****
 	s5k4e1_i2c_read(regaddress1, &chipid1, 1);
-	printkcry(" =========id1 %d %s  %d",__LINE__,__func__,chipid1);
 	if (chipid1 != 0x4E) {
 		rc = -ENODEV;
 		CDBG("s5k4e1_probe_init_sensor fail chip id doesnot match\n");
@@ -828,7 +660,6 @@ printkcry(" =========id1 %d %s  idjj3 %x %x ",__LINE__,__func__,idrd[0],idrd[1])
 	}
 
 	s5k4e1_i2c_read(regaddress2, &chipid2 , 1);
-		printkcry(" =========id2 %d %s  %d",__LINE__,__func__,chipid2);
 	if (chipid2 != 0x10) {
 		rc = -ENODEV;
 		CDBG("s5k4e1_probe_init_sensor fail chip id doesnot match\n");
@@ -837,7 +668,7 @@ printkcry(" =========id1 %d %s  idjj3 %x %x ",__LINE__,__func__,idrd[0],idrd[1])
 
 	CDBG("ID: %d\n", chipid1);
 	CDBG("ID: %d\n", chipid1);
-	printkcry(" =========%d %s  %d",__LINE__,__func__,chipid1);
+
 	return rc;
 
 init_probe_fail:
@@ -852,14 +683,14 @@ init_probe_fail:
 			gpio_free(data->vcm_pwd);
 		}
 	}
-///gpio_req_fail:
-	return rc; */
+gpio_req_fail:
+	return rc;
 }
 
 int s5k4e1_sensor_open_init(const struct msm_camera_sensor_info *data)
 {
 	int32_t rc = 0;
-printkcry(" =========%d %s ",__LINE__,__func__);
+
 	CDBG("%s: %d\n", __func__, __LINE__);
 	CDBG("Calling s5k4e1_sensor_open_init\n");
 
@@ -874,7 +705,7 @@ printkcry(" =========%d %s ",__LINE__,__func__);
 	s5k4e1_ctrl->set_test = TEST_OFF;
 	s5k4e1_ctrl->prev_res = QTR_SIZE;
 	s5k4e1_ctrl->pict_res = FULL_SIZE;
-printkcry(" =========%d %s ",__LINE__,__func__);
+
 	if (data)
 		s5k4e1_ctrl->sensordata = data;
 
@@ -896,10 +727,9 @@ printkcry(" =========%d %s ",__LINE__,__func__);
 
 	/* enable mclk first */
 	msm_camio_clk_rate_set(S5K4E1_MASTER_CLK_RATE);
-	printkcry(" =========%d %s ",__LINE__,__func__);
-	rc = s5k4e1_probe_init_sensor(data); 
-	if (rc < 0){printkcry(" =========%d %s ",__LINE__,__func__);
-		goto init_fail;}
+	rc = s5k4e1_probe_init_sensor(data);
+	if (rc < 0)
+		goto init_fail;
 
 	CDBG("init settings\n");
 	if (s5k4e1_ctrl->prev_res == QTR_SIZE)
@@ -907,8 +737,8 @@ printkcry(" =========%d %s ",__LINE__,__func__);
 	else
 		rc = s5k4e1_sensor_setting(REG_INIT, RES_CAPTURE);
 	s5k4e1_ctrl->fps = 30 * Q8;
-printkcry(" =========%d %s ",__LINE__,__func__);
-	/* enable AF actuator
+
+	/* enable AF actuator */
 	if (s5k4e1_ctrl->sensordata->vcm_enable) {
 		CDBG("enable AF actuator, gpio = %d\n",
 			 s5k4e1_ctrl->sensordata->vcm_pwd);
@@ -929,17 +759,15 @@ printkcry(" =========%d %s ",__LINE__,__func__);
 								0);
 			gpio_free(s5k4e1_ctrl->sensordata->vcm_pwd);
 		}
-	} 
+	}
 	if (rc < 0)
 		goto init_fail;
 	else
-		goto init_done;*/
+		goto init_done;
 init_fail:
 	CDBG("init_fail\n");
-	printkcry(" =========%d %s ",__LINE__,__func__);
-	///s5k4e1_probe_init_done(data);
+	s5k4e1_probe_init_done(data);
 init_done:
-printkcry(" =========%d %s ",__LINE__,__func__);
 	CDBG("init_done\n");
 	return rc;
 }
@@ -1204,10 +1032,9 @@ static int s5k4e1_sensor_probe(const struct msm_camera_sensor_info *info,
 		struct msm_sensor_ctrl *s)
 {
 	int rc = 0;
-	printkcry(" ===c======%d %s  \n",__LINE__,__func__);
+
 	rc = i2c_add_driver(&s5k4e1_i2c_driver);
 	if (rc < 0 || s5k4e1_client == NULL) {
-			printkcry(" ===c======%d %s  \n",__LINE__,__func__);
 		rc = -ENOTSUPP;
 		CDBG("I2C add driver failed");
 		goto probe_fail_1;
@@ -1215,39 +1042,33 @@ static int s5k4e1_sensor_probe(const struct msm_camera_sensor_info *info,
 
 	rc = i2c_add_driver(&s5k4e1_af_i2c_driver);
 	if (rc < 0 || s5k4e1_af_client == NULL) {
-			printkcry(" ===c======%d %s  \n",__LINE__,__func__);
 		rc = -ENOTSUPP;
 		CDBG("I2C add driver failed");
 		goto probe_fail_2;
 	}
 
 	msm_camio_clk_rate_set(S5K4E1_MASTER_CLK_RATE);
-	printkcry(" ===c======%d %s  \n",__LINE__,__func__);
+
 	rc = s5k4e1_probe_init_sensor(info);
-	if (rc < 0) {printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
-		goto probe_fail_3;}
-printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
+	if (rc < 0)
+		goto probe_fail_3;
+
 	s->s_init = s5k4e1_sensor_open_init;
 	s->s_release = s5k4e1_sensor_release;
 	s->s_config  = s5k4e1_sensor_config;
 	s->s_mount_angle = info->sensor_platform_info->mount_angle;
-	printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
 	gpio_set_value_cansleep(info->sensor_reset, 0);
 	s5k4e1_probe_init_done(info);
 	/* Keep vcm_pwd to OUT Low */
-	if(0){
 	if (info->vcm_enable) {
 		rc = gpio_request(info->vcm_pwd, "s5k4e1_af");
 		if (!rc) {
-			printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
 			gpio_direction_output(info->vcm_pwd, 0);
 			msleep(20);
 			gpio_free(info->vcm_pwd);
-		} else { printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
-			return rc;}
+		} else
+			return rc;
 	}
-}
-	printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
 	return rc;
 
 probe_fail_3:
@@ -1260,7 +1081,7 @@ probe_fail_1:
 }
 
 static int __devinit s5k4e1_probe(struct platform_device *pdev)
-{	printkcry(" ===c======%d %s  \n",__LINE__,__func__);
+{
 	return msm_camera_drv_start(pdev, s5k4e1_sensor_probe);
 }
 

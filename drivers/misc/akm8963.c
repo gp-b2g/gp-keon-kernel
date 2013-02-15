@@ -410,8 +410,9 @@ static void AKECS_SetYPR(
 static int AKECS_GetOpenStatus(
 	struct akm8963_data *akm)
 {
-	return wait_event_interruptible(
+	wait_event_interruptible(
 			akm->open_wq, (atomic_read(&akm->active) != 0));
+	return atomic_read(&akm->active);
 }
 
 static int AKECS_GetCloseStatus(

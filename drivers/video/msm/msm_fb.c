@@ -1703,7 +1703,7 @@ static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 			dev.platform_data;
 		if ((pdata) && (pdata->set_backlight)) {
 			down(&mfd->sem);
-			msleep(50);
+			msleep(20);
 			mfd->bl_level = unset_bl_level;
 			pdata->set_backlight(mfd);
 			bl_level_old = unset_bl_level;

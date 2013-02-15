@@ -21,7 +21,7 @@
 #include <mach/msm_bus.h>
 #include <mach/msm_bus_board.h>
 
-#define	printkcry  printk
+
 /* MIPI	CSI controller registers */
 #define	MIPI_PHY_CONTROL		0x00000000
 #define	MIPI_PROTOCOL_CONTROL		0x00000004
@@ -467,15 +467,13 @@ int msm_camio_probe_on(struct platform_device *pdev)
 	camio_dev = pdev;
 	camio_ext = camdev->ioext;
 	camio_clk = camdev->ioclk;
-	printkcry(" ===c======%d %s  %s\n  ",__LINE__,__func__,__FILE__);
+
 	msm_camio_clk_enable(CAMIO_CSI0_PCLK);
 	msm_camio_clk_enable(CAMIO_CSI1_PCLK);
-	printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
+
 	rc = camdev->camera_gpio_on();
-	if (rc < 0) {	printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
+	if (rc < 0)
 		return rc;
-	}
-		printkcry(" ===c======%d %s \n  ",__LINE__,__func__);
 	return msm_camio_clk_enable(CAMIO_CAM_MCLK_CLK);
 }
 

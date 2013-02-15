@@ -1308,6 +1308,12 @@ static void run_timer_softirq(struct softirq_action *h)
 {
 	struct tvec_base *base = __this_cpu_read(tvec_bases);
 
+	if(base == NULL) {
+		/*in case this CPU timer is not initialized.*/
+		WARN_ON(base == NULL);
+		return;
+	}
+
 	hrtimer_run_pending();
 
 	if (time_after_eq(jiffies, base->timer_jiffies))

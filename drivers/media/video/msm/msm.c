@@ -80,6 +80,15 @@ static void msm_cam_v4l2_subdev_notify(struct v4l2_subdev *sd,
 	if (pcam == NULL)
 		return;
 
+	if (notification == NOTIFY_VFE_CAMIF_ERROR) {
+		struct v4l2_event v4l2_ev;
+		v4l2_ev.type = V4L2_EVENT_PRIVATE_START
+				+ MSM_CAM_APP_NOTIFY_ERROR_EVENT;
+		ktime_get_ts(&v4l2_ev.timestamp);
+		v4l2_event_queue(g_server_dev.pcam_active->pvdev, &v4l2_ev);
+		return;
+	}
+
 	/* forward to media controller for any changes*/
 	if (pcam->mctl.mctl_notify) {
 		pcam->mctl.mctl_notify(&pcam->mctl, notification, arg);
@@ -174,7 +183,7 @@ static int msm_server_control(struct msm_cam_server_dev *server_dev,
 	D("Waiting for config status\n");
 	rc = wait_event_interruptible_timeout(queue->wait,
 		!list_empty_careful(&queue->list),
-		out->timeout_ms);
+		msecs_to_jiffies(out->timeout_ms));
 	D("Waiting is over for config status\n");
 	if (list_empty_careful(&queue->list)) {
 		if (!rc)
@@ -459,7 +468,10 @@ static int msm_server_proc_ctrl_cmd(struct msm_cam_v4l2_device *pcam,
 	ctrlcmd.type = MSM_V4L2_SET_CTRL_CMD;
 	ctrlcmd.length = cmd_len + value_len;
 	ctrlcmd.value = (void *)ctrl_data;
-	ctrlcmd.timeout_ms = 1000;
+	if (tmp_cmd->timeout_ms > 0)
+		ctrlcmd.timeout_ms = tmp_cmd->timeout_ms;
+	else
+		ctrlcmd.timeout_ms = 1000;
 	ctrlcmd.vnode_id = pcam->vnode_id;
 	ctrlcmd.config_ident = g_server_dev.config_info.config_dev_id[0];
 	/* send command to config thread in usersspace, and get return value */

@@ -627,7 +627,6 @@ int msm_camio_probe_on(struct platform_device *pdev)
 	struct msm_camera_device_platform_data *camdev = sinfo->pdata;
 	camio_clk = camdev->ioclk;
 	camio_ext = camdev->ioext;
-	printkcry(" ===c======%d %s  %s\n  ",__LINE__,__func__,__FILE__);
 	camdev->camera_gpio_on();
 	msm_camera_vreg_enable(pdev);
 	return msm_camio_clk_enable(CAMIO_CAM_MCLK_CLK);

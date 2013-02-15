@@ -22,8 +22,8 @@
 #include <mach/irqs-7xxx.h>
 #include "devices-msm7x2xa.h"
 #include "board-msm7627a.h"
-#ifdef CONFIG_MSM_CAMERA_V4L2
 
+#ifdef CONFIG_MSM_CAMERA_V4L2
 static uint32_t camera_off_gpio_table[] = {
 	GPIO_CFG(15, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
 };
@@ -163,22 +163,20 @@ static struct msm_actuator_info s5k4e1_actuator_info = {
 #ifdef CONFIG_S5K4E1
 static struct msm_camera_sensor_flash_data flash_s5k4e1 = {
 	.flash_type             = MSM_CAMERA_FLASH_LED,
-#ifdef CONFIG_MSM_CAMERA_FLASH
 	.flash_src              = &msm_flash_src
-#endif
 };
 
 static struct msm_camera_sensor_platform_info sensor_board_info_s5k4e1 = {
 	.mount_angle	= 90,
-	.sensor_reset	= 6,///GPIO_CAM_GP_CAMIF_RESET_N,
-	.sensor_pwd	= 5,///85,
+	.sensor_reset	= GPIO_CAM_GP_CAMIF_RESET_N,
+	.sensor_pwd	= 85,
 	.vcm_pwd	= GPIO_CAM_GP_CAM_PWDN,
 	.vcm_enable	= 1,
 };
 
 static struct msm_camera_sensor_info msm_camera_sensor_s5k4e1_data = {
 	.sensor_name    = "s5k4e1",
-	.sensor_reset_enable =0,
+	.sensor_reset_enable = 1,
 	.pdata                  = &msm_camera_device_data_csi1,
 	.flash_data             = &flash_s5k4e1,
 	.sensor_platform_info   = &sensor_board_info_s5k4e1,
@@ -193,9 +191,7 @@ static struct msm_camera_sensor_info msm_camera_sensor_s5k4e1_data = {
 #ifdef CONFIG_MT9E013
 static struct msm_camera_sensor_flash_data flash_mt9e013 = {
 	.flash_type             = MSM_CAMERA_FLASH_LED,
-#ifdef CONFIG_MSM_CAMERA_FLASH
 	.flash_src              = &msm_flash_src
-#endif
 };
 
 static struct msm_camera_sensor_platform_info sensor_board_info_mt9e013 = {
@@ -224,9 +220,7 @@ static struct msm_camera_sensor_platform_info imx072_sensor_7627a_info = {
 
 static struct msm_camera_sensor_flash_data flash_imx072 = {
 	.flash_type             = MSM_CAMERA_FLASH_LED,
-#ifdef CONFIG_MSM_CAMERA_FLASH
 	.flash_src              = &msm_flash_src
-#endif
 };
 
 static struct msm_camera_sensor_info msm_camera_sensor_imx072_data = {
@@ -253,9 +247,7 @@ static struct platform_device msm_camera_sensor_imx072 = {
 #ifdef CONFIG_WEBCAM_OV9726
 static struct msm_camera_sensor_flash_data flash_ov9726 = {
 	.flash_type             = MSM_CAMERA_FLASH_LED,
-#ifdef CONFIG_MSM_CAMERA_FLASH
 	.flash_src              = &msm_flash_src
-#endif
 };
 
 static struct msm_camera_sensor_platform_info sensor_board_info_ov9726 = {
@@ -288,15 +280,14 @@ static void __init msm7x27a_init_cam(void)
 static struct i2c_board_info i2c_camera_devices[] = {
 	#ifdef CONFIG_S5K4E1
 	{
-		I2C_BOARD_INFO("s5k4e1", 0x44 >>1 ),
-		.platform_data =&msm_camera_sensor_s5k4e1_data,
+		I2C_BOARD_INFO("s5k4e1", 0x36),
+		.platform_data = &msm_camera_sensor_s5k4e1_data,
 	},
 	#endif
 	{
 		I2C_BOARD_INFO("s5k5cag", 0x5a >>1 ), 
 		.platform_data = &msm_camera_sensor_s5k5cag_data,  
 	},
-
 	#ifdef CONFIG_WEBCAM_OV9726
 	{
 		I2C_BOARD_INFO("ov9726", 0x10),
@@ -515,16 +506,14 @@ static struct msm_camera_sensor_platform_info s5k4e1_sensor_7627a_info = {
 
 static struct msm_camera_sensor_flash_data flash_s5k4e1 = {
 	.flash_type	     = MSM_CAMERA_FLASH_LED,
-#ifdef CONFIG_MSM_CAMERA_FLASH
 	.flash_src	      = &msm_flash_src
-#endif
 };
 
 static struct msm_camera_sensor_info msm_camera_sensor_s5k4e1_data = {
 	.sensor_name		= "s5k4e1",
-	.sensor_reset_enable	= 0,///1,
-	.sensor_reset		= 6,///GPIO_CAM_GP_CAMIF_RESET_N,
-	.sensor_pwd	     = 5,///85,
+	.sensor_reset_enable	= 1,
+	.sensor_reset		= GPIO_CAM_GP_CAMIF_RESET_N,
+	.sensor_pwd	     = 85,
 	.vcm_pwd		= GPIO_CAM_GP_CAM_PWDN,
 	.vcm_enable	     = 1,
 	.pdata			= &msm_camera_device_data_rear,
@@ -548,9 +537,7 @@ static struct msm_camera_sensor_platform_info imx072_sensor_7627a_info = {
 
 static struct msm_camera_sensor_flash_data flash_imx072 = {
 	.flash_type	     = MSM_CAMERA_FLASH_LED,
-#ifdef CONFIG_MSM_CAMERA_FLASH
 	.flash_src	      = &msm_flash_src
-#endif
 };
 
 static struct msm_camera_sensor_info msm_camera_sensor_imx072_data = {
@@ -582,9 +569,7 @@ static struct msm_camera_sensor_platform_info ov9726_sensor_7627a_info = {
 
 static struct msm_camera_sensor_flash_data flash_ov9726 = {
 	.flash_type	     = MSM_CAMERA_FLASH_NONE,
-#ifdef CONFIG_MSM_CAMERA_FLASH
 	.flash_src	      = &msm_flash_src
-#endif
 };
 
 static struct msm_camera_sensor_info msm_camera_sensor_ov9726_data = {
@@ -617,9 +602,7 @@ static struct msm_camera_sensor_platform_info mt9e013_sensor_7627a_info = {
 
 static struct msm_camera_sensor_flash_data flash_mt9e013 = {
 	.flash_type = MSM_CAMERA_FLASH_LED,
-#ifdef CONFIG_MSM_CAMERA_FLASH
 	.flash_src  = &msm_flash_src
-#endif
 };
 
 static struct msm_camera_sensor_info msm_camera_sensor_mt9e013_data = {
@@ -733,9 +716,8 @@ static struct platform_device msm_camera_sensor_s5k5cag = {
 	},
 };
 static struct i2c_board_info i2c_camera_devices[] = {
-	
-		{
-		I2C_BOARD_INFO("s5k5cag", 0x5a >>1 ), ///I2C_BOARD_INFO("s5k4e1", 0x36),
+	{
+		I2C_BOARD_INFO("s5k5cag", 0x5a >>1 ),
 		.platform_data = &msm_camera_sensor_s5k5cag_data,  
 	},
 	#ifdef CONFIG_S5K4E1
@@ -847,7 +829,7 @@ void __init msm7627a_camera_init(void)
 		platform_add_devices(camera_devices_msm,
 				ARRAY_SIZE(camera_devices_msm));
 #endif
-	if (!machine_is_msm7627a_qrd1())
+	if (0)
 		register_i2c_devices();
 	rc = regulator_bulk_get(NULL, ARRAY_SIZE(regs_camera), regs_camera);
 
