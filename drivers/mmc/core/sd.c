@@ -24,11 +24,6 @@
 #include "sd.h"
 #include "sd_ops.h"
 
-//jason.lee_fix_0002
-//2012/11/23 for prevent sd card shatter when it bigger than 32GB 
-//add
-#define SDHC_MAX_SIZE 1024*1024*32
-//end
 static const unsigned int tran_exp[] = {
 	10000,		100000,		1000000,	10000000,
 	0,		0,		0,		0
@@ -656,8 +651,7 @@ static int mmc_sd_init_uhs_card(struct mmc_card *card)
 	/* SPI mode doesn't define CMD19 */
 	if (!mmc_host_is_spi(card->host) && card->host->ops->execute_tuning) {
 		mmc_host_clk_hold(card->host);
-		err = card->host->ops->execute_tuning(card->host,
-						      MMC_SEND_TUNING_BLOCK);
+		err = card->host->ops->execute_tuning(card->host);
 		mmc_host_clk_release(card->host);
 	}
 
@@ -790,21 +784,6 @@ int mmc_sd_get_csd(struct mmc_host *host, struct mmc_card *card)
 	err = mmc_decode_csd(card);
 	if (err)
 		return err;
-	
-	//jason.lee_fix_0002
-	//2012/11/23 for prevent sd card shatter when it bigger than 32GB 
-	//add
-	if (card->csd.capacity > SDHC_MAX_SIZE*2){
-		printk(KERN_INFO "SD size %d > 32 GiB\n",card->csd.capacity/1024/1024/2);
-		return EINVAL;
-	}
-	//end
-	/* Fix for some buggy card with CSD tacc == 0*/
-	if(!card->csd.tacc_ns)
-	{	
-		printk(KERN_INFO "This SDCARD CSD tacc is zero! Fix it for 100ms\n");
-		card->csd.tacc_ns = 100000 * 1000;
-	}
 
 	return 0;
 }

@@ -94,7 +94,9 @@ static int suspend_prepare(void)
 	if (!suspend_ops || !suspend_ops->enter)
 		return -EPERM;
 
+#ifndef CONFIG_FB_EARLYSUSPEND
 	pm_prepare_console();
+#endif
 
 	error = pm_notifier_call_chain(PM_SUSPEND_PREPARE);
 	if (error)
@@ -112,7 +114,9 @@ static int suspend_prepare(void)
 	usermodehelper_enable();
  Finish:
 	pm_notifier_call_chain(PM_POST_SUSPEND);
+#ifndef CONFIG_FB_EARLYSUSPEND	
 	pm_restore_console();
+#endif
 	return error;
 }
 

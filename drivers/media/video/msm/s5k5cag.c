@@ -3652,7 +3652,7 @@ static void s5k5cag_sensor_gpio_request(void)
     printkcry(" =========gpio_request(5 ok %d %s  \n",__LINE__,__func__);
     gpio_direction_output(5, 0);
     
-    gpio_free(6);
+    //gpio_free(6);
     rc = gpio_request(6, "s5k5cag_reser33");
     if (rc < 0) {
 printkcry(" =========gpio_request(6n err %d %s  \n",__LINE__,__func__);

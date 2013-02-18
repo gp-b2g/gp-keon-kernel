@@ -320,7 +320,6 @@ static int AKECS_GetData(
 	int size)
 {
 	int err;
-	struct irq_desc *irq_desc;	
 
 	err = wait_event_interruptible_timeout(
 			akm->drdy_wq,
@@ -344,16 +343,6 @@ static int AKECS_GetData(
 	atomic_set(&akm->drdy, 0);
 	mutex_unlock(&akm->sensor_mutex);
 
-	dev_vdbg(&akm->i2c->dev,
-		"Sensor Data: %04d,  %04d,  %04d,  %04d,"
-		"  %04d,  %04d,  %04d,  %04d\n",
-		rbuf[0],rbuf[1],rbuf[2],rbuf[3],
-		rbuf[4],rbuf[5],rbuf[6],rbuf[7]);
-
-	irq_desc = irq_to_desc(akm->irq);
-	dev_vdbg(&akm->i2c->dev,
-		"IRQ status: IRQ count = %d unhandled = %d last_unhendled = %lu\n",
-		irq_desc->irq_count, irq_desc->irqs_unhandled, irq_desc->last_unhandled);
 	return 0;
 }
 
@@ -410,16 +399,15 @@ static void AKECS_SetYPR(
 static int AKECS_GetOpenStatus(
 	struct akm8963_data *akm)
 {
-	wait_event_interruptible(
-			akm->open_wq, (atomic_read(&akm->active) != 0));
+	wait_event_interruptible(akm->open_wq, (atomic_read(&akm->active) != 0));
 	return atomic_read(&akm->active);
 }
 
 static int AKECS_GetCloseStatus(
 	struct akm8963_data *akm)
 {
-	return wait_event_interruptible(
-			akm->open_wq, (atomic_read(&akm->active) <= 0));
+	wait_event_interruptible(akm->open_wq, (atomic_read(&akm->active) <= 0));
+	return atomic_read(&akm->active);
 }
 
 static int AKECS_Open(struct inode *inode, struct file *file)
@@ -1132,7 +1120,7 @@ static struct device_attribute akm8963_attributes[] = {
 	}
 
 static struct bin_attribute akm8963_bin_attributes[] = {
-	__BIN_ATTR(accel, 0664, 6, NULL,
+	__BIN_ATTR(accel, 0220, 6, NULL,
 				NULL, akm8963_bin_accel_write),
 	__BIN_ATTR_NULL
 };
@@ -1140,7 +1128,7 @@ static struct bin_attribute akm8963_bin_attributes[] = {
 static char const *const compass_class_name = "compass";
 static char const *const akm8963_device_name = "akm8963";
 static char const *const device_link_name = "i2c";
-static dev_t const akm8963_device_dev_t = MKDEV(MISC_MAJOR, 240);
+static dev_t const akm8963_device_dev_t = MKDEV(MISC_MAJOR, 241);
 
 static int create_sysfs_interfaces(struct akm8963_data *akm)
 {
@@ -1328,17 +1316,11 @@ static void akm8963_delayed_work(struct work_struct *work)
 
 static int akm8963_suspend(struct device *dev)
 {
-	struct akm8963_data *akm = dev_get_drvdata(dev);
-	dev_dbg(&akm->i2c->dev, "suspended\n");
-
 	return 0;
 }
 
 static int akm8963_resume(struct device *dev)
 {
-	struct akm8963_data *akm = dev_get_drvdata(dev);
-	dev_dbg(&akm->i2c->dev, "resumed\n");
-
 	return 0;
 }
 
@@ -1413,7 +1395,7 @@ int akm8963_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	atomic_set(&s_akm->suspend, 0);
 
 	s_akm->enable_flag = 0;
-	for (i=0; i<AKM_NUM_SENSORS; i++)
+	for (i = 0; i < AKM_NUM_SENSORS; i++)
 		s_akm->delay[i] = -1;
 
 
@@ -1533,4 +1515,3 @@ module_exit(akm8963_exit);
 MODULE_AUTHOR("viral wang <viral_wang@htc.com>");
 MODULE_DESCRIPTION("AKM8963 compass driver");
 MODULE_LICENSE("GPL");
-

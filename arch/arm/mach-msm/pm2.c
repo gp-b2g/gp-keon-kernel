@@ -68,14 +68,13 @@
  *****************************************************************************/
 
 enum {
-	MSM_PM_DEBUG_SUSPEND = BIT(0),
-	MSM_PM_DEBUG_POWER_COLLAPSE = BIT(1),
-	MSM_PM_DEBUG_STATE = BIT(2),
-	MSM_PM_DEBUG_CLOCK = BIT(3),
-	MSM_PM_DEBUG_RESET_VECTOR = BIT(4),
-	MSM_PM_DEBUG_SMSM_STATE = BIT(5),
-	MSM_PM_DEBUG_IDLE = BIT(6),
-	MSM_PM_DEBUG_HOTPLUG = BIT(7),
+	MSM_PM_DEBUG_SUSPEND = 1U << 0,
+	MSM_PM_DEBUG_POWER_COLLAPSE = 1U << 1,
+	MSM_PM_DEBUG_STATE = 1U << 2,
+	MSM_PM_DEBUG_CLOCK = 1U << 3,
+	MSM_PM_DEBUG_RESET_VECTOR = 1U << 4,
+	MSM_PM_DEBUG_SMSM_STATE = 1U << 5,
+	MSM_PM_DEBUG_IDLE = 1U << 6,
 };
 
 static int msm_pm_debug_mask;
@@ -1718,14 +1717,17 @@ static struct platform_suspend_ops msm_pm_ops = {
 /******************************************************************************
  * Restart Definitions
  *****************************************************************************/
+#ifdef CONFIG_RMT_STORAGE_CLIENT
 extern void rmt_storage_client_shutdown_complete(void);
-
+#endif
 static uint32_t restart_reason = 0x776655AA;
 
 static void msm_pm_power_off(void)
 {
 	printk("%s\n", __func__);
+#ifdef CONFIG_RMT_STORAGE_CLIENT
 	rmt_storage_client_shutdown_complete();
+#endif
 	msm_rpcrouter_close();
 	msm_proc_comm(PCOM_POWER_DOWN, 0, 0);
 	printk("%s sent\n", __func__);
@@ -1736,7 +1738,9 @@ static void msm_pm_power_off(void)
 static void msm_pm_restart(char str, const char *cmd)
 {
 	printk("%s\n", __func__);
+#ifdef CONFIG_RMT_STORAGE_CLIENT
 	rmt_storage_client_shutdown_complete();
+#endif
 	msm_rpcrouter_close();
 
 	printk("restart str %c cmd %s",str,cmd);
@@ -1852,6 +1856,7 @@ static int __init msm_pm_init(void)
 
 	BUG_ON(msm_pm_modes == NULL);
 
+	atomic_set(&msm_pm_init_done, 1);
 	suspend_set_ops(&msm_pm_ops);
 
 	msm_pm_mode_sysfs_add();
@@ -1865,7 +1870,6 @@ static int __init msm_pm_init(void)
 	}
 #endif
 
-	atomic_set(&msm_pm_init_done, 1);
 	return 0;
 }
 

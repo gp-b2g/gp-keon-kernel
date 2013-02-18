@@ -70,7 +70,7 @@
 #define PS31XX_INT         17                                                                                                              
 #define AKM_GPIO_DRDY      26                                                                                                                
 #define AKM_GPIO_RST       0                                                                                                                        
-#define AKM_LAYOUT         6                                                                                                                     
+#define AKM_LAYOUT         3                                                                                                                     
 #define AKM_OUTBIT         1
                              
 static struct stk31xx_platform_data stk31xx_data = {                                                                                                                                                                                                                       
@@ -931,7 +931,7 @@ static struct msm_panel_common_pdata mdp_pdata = {
 
 
 #ifdef CONFIG_FB_MSM
-#define GPIO_LCDC_BRDG_PD	97
+#define GPIO_LCDC_BRDG_PD	128
 #define GPIO_LCDC_BRDG_RESET_N	4
 #define GPIO_LCDC_BL_EN	96
 
@@ -1041,14 +1041,10 @@ static int mipi_dsi_panel_power(int on)
 		}
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 1);
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 1);
-	}
-	else{
+	}else{
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 0);
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 0);
 	}
-
-	gpio_free(GPIO_LCDC_BRDG_RESET_N);
-	gpio_free(GPIO_LCDC_BRDG_PD);
 
 	return rc;
 }
@@ -1138,7 +1134,7 @@ static int elan_ktf2k_ts_power(void)
 
 	rc = gpio_tlmm_config(GPIO_CFG(EKTF2K_TS_INTERRUPT_GPIO, 0,
 				GPIO_CFG_INPUT, GPIO_CFG_PULL_UP,
-				GPIO_CFG_16MA), GPIO_CFG_ENABLE);
+				GPIO_CFG_8MA), GPIO_CFG_ENABLE);
 	if (rc) {
 		pr_err("%s: gpio_tlmm_config for %d failed\n",
 				__func__, EKTF2K_TS_INTERRUPT_GPIO);

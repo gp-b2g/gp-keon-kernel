@@ -20,7 +20,6 @@
 #include <linux/gpio.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
-#include <linux/module.h>
 
 #include <mach/gpio.h>
 #include <mach/sdhci.h>

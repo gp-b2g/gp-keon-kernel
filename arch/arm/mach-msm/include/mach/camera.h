@@ -27,7 +27,7 @@
 #include <mach/msm_subsystem_map.h>
 #include <linux/ion.h>
 
-#define CONFIG_MSM_CAMERA_DEBUG
+//#define CONFIG_MSM_CAMERA_DEBUG
 #ifdef CONFIG_MSM_CAMERA_DEBUG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 #else

@@ -14,7 +14,6 @@
 
 #include <linux/delay.h>
 #include <linux/highmem.h>
-#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>

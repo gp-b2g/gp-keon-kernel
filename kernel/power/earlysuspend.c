@@ -30,6 +30,8 @@ enum {
 static int debug_mask = DEBUG_USER_STATE;
 bool early_sleep_state = 1;
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
+void set_sampling_rate(int screen_on);
+void set_up_threshold(int screen_on);
 
 static DEFINE_MUTEX(early_suspend_lock);
 static LIST_HEAD(early_suspend_handlers);
@@ -102,6 +104,10 @@ static void early_suspend(struct work_struct *work)
 			pos->suspend(pos);
 		}
 	}
+
+	set_sampling_rate(0);
+	set_up_threshold(0);
+
 	mutex_unlock(&early_suspend_lock);
 
 	suspend_sys_sync_queue();
@@ -112,13 +118,20 @@ abort:
 	spin_unlock_irqrestore(&state_lock, irqflags);
 }
 
+extern int cpufreq_set_min_freq(int flag);
+
 static void late_resume(struct work_struct *work)
 {
 	struct early_suspend *pos;
 	unsigned long irqflags;
 	int abort = 0;
 
+	cpufreq_set_min_freq(1);//set to max freq
+
 	mutex_lock(&early_suspend_lock);
+	set_sampling_rate(1);
+	set_up_threshold(1);
+    
 	spin_lock_irqsave(&state_lock, irqflags);
 	if (state == SUSPENDED)
 		state &= ~SUSPENDED;
@@ -146,6 +159,9 @@ static void late_resume(struct work_struct *work)
 		pr_info("late_resume: done\n");
 abort:
 	mutex_unlock(&early_suspend_lock);
+
+	cpufreq_set_min_freq(0);//set to max freq
+
 }
 
 void request_suspend_state(suspend_state_t new_state)

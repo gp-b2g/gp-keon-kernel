@@ -9,7 +9,6 @@
  */
 
 #include <linux/pci.h>
-#include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/highmem.h>
 #include <linux/delay.h>
