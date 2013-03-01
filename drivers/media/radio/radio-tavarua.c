@@ -120,10 +120,6 @@ struct tavarua_device {
 	/*PS repeatcount for PS Tx */
 	int ps_repeatcount;
 	int enable_optimized_srch_alg;
-	unsigned char spur_table_size;
-	struct fm_spur_data spur_data;
-	atomic_t validate_channel;
-	unsigned char is_station_valid;
 };
 
 /**************************************************************************
@@ -151,11 +147,6 @@ static int tavarua_start(struct tavarua_device *radio,
 			enum radio_state_t state);
 static int tavarua_request_irq(struct tavarua_device *radio);
 static void start_pending_xfr(struct tavarua_device *radio);
-static int update_spur_table(struct tavarua_device *radio);
-static int xfr_rdwr_data(struct tavarua_device *radio, int op, int size,
-	unsigned long offset, unsigned char *buf);
-static int compute_MPX_DCC(struct tavarua_device *radio, int *val);
-
 /* work function */
 static void read_int_stat(struct work_struct *work);
 
@@ -737,7 +728,7 @@ FUNCTION:  tavarua_handle_interrupts
 static void tavarua_handle_interrupts(struct tavarua_device *radio)
 {
 	int i;
-	int retval, adj_channel_tune_req = 0;
+	int retval;
 	unsigned char xfr_status;
 	if (!radio->handle_irq) {
 		FMDBG("IRQ happend, but I wont handle it\n");
@@ -761,25 +752,7 @@ static void tavarua_handle_interrupts(struct tavarua_device *radio)
 			complete(&radio->sync_req_done);
 			radio->tune_req = 0;
 		}
-
-		/*
-		 * Do not queue the TUNE event while validating if the station
-		 * is good or not. As part of channel validation we tune to the
-		 * adjacent station, measure its MPX_DCC value, then tune back
-		 * to the original station and measure its MPX_DCC value.
-		 * Compare the MPX_DCC values of curent and adjacent stations
-		 * and decide if the channel is valid or not. During this period
-		 * we should not queue the TUNE event to the upper layers.
-		 */
-		adj_channel_tune_req = atomic_read(&radio->validate_channel);
-		if (adj_channel_tune_req) {
-			complete(&radio->sync_req_done);
-			FMDBG("Tune event for adjacent channel\n");
-		} else {
-			tavarua_q_event(radio, TAVARUA_EVT_TUNE_SUCC);
-			FMDBG("Queueing Tune event\n");
-		}
-
+		tavarua_q_event(radio, TAVARUA_EVT_TUNE_SUCC);
 		if (radio->srch_params.get_list) {
 			tavarua_start_xfr(radio, TAVARUA_XFR_SRCH_LIST,
 							RX_STATIONS_0);
@@ -1017,10 +990,6 @@ static void tavarua_handle_interrupts(struct tavarua_device *radio)
 			FMDBG("read PHY_TXGAIN is successful");
 			complete(&radio->sync_req_done);
 			break;
-		case (XFR_EXT | 0x80):
-			FMDBG("Set tone generator successful\n");
-			complete(&radio->sync_req_done);
-			break;
 		case (0x80 | RX_CONFIG):
 		case (0x80 | RADIO_CONFIG):
 		case (0x80 | RDS_CONFIG):
@@ -1054,35 +1023,6 @@ static void tavarua_handle_interrupts(struct tavarua_device *radio)
 			break;
 		case (0x80 | PHY_TXGAIN):
 			FMDBG("write PHY_TXGAIN is successful");
-			complete(&radio->sync_req_done);
-			break;
-		case (XFR_POKE_COMPLETE | LSH_DATA(ONE_BYTE, 1)):
-		case (XFR_POKE_COMPLETE | LSH_DATA(TWO_BYTE, 1)):
-		case (XFR_POKE_COMPLETE | LSH_DATA(THREE_BYTE, 1)):
-		case (XFR_POKE_COMPLETE | LSH_DATA(FOUR_BYTE, 1)):
-		case (XFR_POKE_COMPLETE | LSH_DATA(FIVE_BYTE, 1)):
-		case (XFR_POKE_COMPLETE | LSH_DATA(SIX_BYTE, 1)):
-		case (XFR_POKE_COMPLETE | LSH_DATA(SEVEN_BYTE, 1)):
-		case (XFR_POKE_COMPLETE | LSH_DATA(EIGHT_BYTE, 1)):
-		case (XFR_POKE_COMPLETE | LSH_DATA(NINE_BYTE, 1)):
-		case (XFR_POKE_COMPLETE | LSH_DATA(TEN_BYTE, 1)):
-		case (XFR_POKE_COMPLETE | LSH_DATA(ELEVEN_BYTE, 1)):
-		case (XFR_POKE_COMPLETE | LSH_DATA(TWELVE_BYTE, 1)):
-		case (XFR_POKE_COMPLETE | LSH_DATA(THIRTEEN_BYTE, 1)):
-		case (XFR_PEEK_COMPLETE | LSH_DATA(ONE_BYTE, 1)):
-		case (XFR_PEEK_COMPLETE | LSH_DATA(TWO_BYTE, 1)):
-		case (XFR_PEEK_COMPLETE | LSH_DATA(THREE_BYTE, 1)):
-		case (XFR_PEEK_COMPLETE | LSH_DATA(FOUR_BYTE, 1)):
-		case (XFR_PEEK_COMPLETE | LSH_DATA(FIVE_BYTE, 1)):
-		case (XFR_PEEK_COMPLETE | LSH_DATA(SIX_BYTE, 1)):
-		case (XFR_PEEK_COMPLETE | LSH_DATA(SEVEN_BYTE, 1)):
-		case (XFR_PEEK_COMPLETE | LSH_DATA(EIGHT_BYTE, 1)):
-		case (XFR_PEEK_COMPLETE | LSH_DATA(NINE_BYTE, 1)):
-		case (XFR_PEEK_COMPLETE | LSH_DATA(TEN_BYTE, 1)):
-		case (XFR_PEEK_COMPLETE | LSH_DATA(ELEVEN_BYTE, 1)):
-		case (XFR_PEEK_COMPLETE | LSH_DATA(TWELVE_BYTE, 1)):
-		case (XFR_PEEK_COMPLETE | LSH_DATA(THIRTEEN_BYTE, 1)):
-			FMDBG("XFR interrupt for PEEK/POKE complete\n");
 			complete(&radio->sync_req_done);
 			break;
 		default:
@@ -1239,7 +1179,7 @@ static int optimized_search_algorithm(struct tavarua_device *radio,
 	unsigned char adie_type_bahma;
 	int retval = 0;
 	unsigned int rdsMask = 0;
-	unsigned char value;
+	unsigned char value = 0;
 
 	adie_type_bahma = is_bahama();
 
@@ -2218,7 +2158,6 @@ exit:
 	wait_for_completion(&radio->shutdown_done);
 	radio->handle_irq = 1;
 	radio->lp_mode = 1;
-	radio->spur_table_size = 0;
 	atomic_inc(&radio->users);
 	radio->marimba->mod_id = SLAVE_ID_BAHAMA;
 	flush_workqueue(radio->wqueue);
@@ -2542,156 +2481,6 @@ static int tavarua_vidioc_queryctrl(struct file *file, void *priv,
 
 	return retval;
 }
-
-static int update_spur_table(struct tavarua_device *radio)
-{
-	unsigned char xfr_buf[XFR_REG_NUM];
-	unsigned char size = 0, tbl_size = 0;
-	int index = 0, offset = 0, addr = 0x0, val = 0;
-	int retval = 0, temp = 0, cnt = 0, j = 0;
-
-	memset(xfr_buf, 0x0, XFR_REG_NUM);
-
-	/* Read the SPUR Table Size */
-	retval = xfr_rdwr_data(radio, XFR_READ, 1, SPUR_TABLE_ADDR, &tbl_size);
-	if (retval < 0) {
-		FMDERR("%s: Failed to read SPUR table size\n", __func__);
-		return retval;
-	}
-
-	/* Calculate the new SPUR Register address */
-	val = addr = (SPUR_TABLE_START_ADDR + (tbl_size * 3));
-
-	/* Save the SPUR Table length configured by user*/
-	temp = radio->spur_table_size;
-
-	/* COnfigure the new spur table length */
-	size = (radio->spur_table_size + tbl_size);
-	retval = xfr_rdwr_data(radio, XFR_WRITE, 1, SPUR_TABLE_ADDR, &size);
-	if (retval < 0) {
-		FMDERR("%s: Failed to configure SPUR table size\n", __func__);
-		return retval;
-	}
-
-	/* Program the spur table entries */
-	for (cnt = 0; cnt < (temp / 4); cnt++) {
-		offset  = 0;
-		for (j = 0; j < 4; j++) {
-			xfr_buf[offset++] = GET_FREQ(COMPUTE_SPUR(
-				radio->spur_data.freq[index]), 1);
-			xfr_buf[offset++] = GET_FREQ(COMPUTE_SPUR(
-				radio->spur_data.freq[index]), 0);
-			xfr_buf[offset++] =
-				radio->spur_data.rmssi[index];
-			index++;
-		}
-		retval = xfr_rdwr_data(radio, XFR_WRITE, (SPUR_DATA_SIZE * 4),
-			addr, xfr_buf);
-		if (retval < 0) {
-			FMDERR("%s: Failed to program SPUR frequencies\n",
-				__func__);
-			return retval;
-		}
-		addr += (SPUR_DATA_SIZE * 4);
-	}
-
-	/* Program the additional SPUR Frequencies */
-	temp = radio->spur_table_size;
-	temp = (temp % 4);
-	if (temp > 0) {
-		offset = 0;
-		for (j = 0; j < temp; j++) {
-			xfr_buf[offset++] = GET_FREQ(COMPUTE_SPUR(
-				radio->spur_data.freq[index]), 1);
-			xfr_buf[offset++] = GET_FREQ(COMPUTE_SPUR(
-				radio->spur_data.freq[index]), 0);
-			xfr_buf[offset++] =
-				radio->spur_data.rmssi[index];
-			index++;
-		}
-		size   = (temp * SPUR_DATA_SIZE);
-		retval = xfr_rdwr_data(radio, XFR_WRITE, size, addr, xfr_buf);
-		if (retval < 0) {
-			FMDERR("%s: Failed to program SPUR frequencies\n",
-				__func__);
-			return retval;
-		}
-	}
-
-	return retval;
-}
-
-static int xfr_rdwr_data(struct tavarua_device *radio, int op, int size,
-	unsigned long offset, unsigned char *buf) {
-
-	unsigned char xfr_buf[XFR_REG_NUM + 1];
-	int retval = 0, temp = 0;
-
-	/* zero initialize the buffer */
-	memset(xfr_buf, 0x0, XFR_REG_NUM);
-
-	/* save the 'size' parameter */
-	temp = size;
-
-	/* Populate the XFR bytes */
-	xfr_buf[XFR_MODE_OFFSET]     = LSH_DATA(size, 1);
-	xfr_buf[XFR_ADDR_MSB_OFFSET] = GET_FREQ(offset, 1);
-	xfr_buf[XFR_ADDR_LSB_OFFSET] = GET_FREQ(offset, 0);
-	if (op == XFR_READ) {
-		if (size > XFR_REG_NUM) {
-			FMDERR("%s: Cant read more than 16 bytes\n", __func__);
-			return -EINVAL;
-		}
-		xfr_buf[XFR_MODE_OFFSET] |= (XFR_PEEK_MODE);
-		size = 3;
-	} else if (op == XFR_WRITE) {
-		if (size > (XFR_REG_NUM - 2)) {
-			FMDERR("%s: Cant write more than 14 bytes\n", __func__);
-			return -EINVAL;
-		}
-		xfr_buf[XFR_MODE_OFFSET] |= (XFR_POKE_MODE);
-		memcpy(&xfr_buf[XFR_DATA_OFFSET], buf, size);
-		size += 3;
-	}
-
-	/* Perform the XFR READ/WRITE operation */
-	init_completion(&radio->sync_req_done);
-	retval = tavarua_write_registers(radio, XFRCTRL, xfr_buf, size);
-	if (retval < 0) {
-		FMDERR("%s: Failed to perform XFR operation\n", __func__);
-		return retval;
-	}
-
-	/*Wait for the XFR interrupt */
-	if (!wait_for_completion_timeout(&radio->sync_req_done,
-		msecs_to_jiffies(WAIT_TIMEOUT))) {
-		FMDERR("Timeout: No XFR interrupt");
-		return -ETIMEDOUT;
-	}
-
-	/*
-	 * For XFR READ operation save the XFR data provided by the SOC.
-	 * Firmware reads the data from the address specified and places
-	 * them in to the registers XFRDAT0-XFRDAT15 which the host can read.
-	 */
-	size = temp;
-	if (op == XFR_READ) {
-		retval = tavarua_read_registers(radio, XFRDAT0, size);
-		if (retval < 0) {
-			FMDERR("%s: Failed to read the XFR data\n", __func__);
-			return retval;
-		}
-		if (buf != NULL)
-			memcpy(buf, &radio->registers[XFRDAT0], size);
-		else {
-			FMDERR("%s: No buffer to copy XFR data\n", __func__);
-			return -EINVAL;
-		}
-	}
-
-	return retval;
-}
-
 static int peek_MPX_DCC(struct tavarua_device *radio)
 {
 	int retval = 0;
@@ -3008,9 +2797,6 @@ static int tavarua_vidioc_g_ctrl(struct file *file, void *priv,
 	case V4L2_CID_PRIVATE_IRIS_GET_SINR:
 		retval = 0;
 		break;
-	case V4L2_CID_PRIVATE_VALID_CHANNEL:
-		ctrl->value = radio->is_station_valid;
-		break;
 	default:
 		retval = -EINVAL;
 	}
@@ -3159,15 +2945,12 @@ static int tavarua_vidioc_s_ctrl(struct file *file, void *priv,
 		struct v4l2_control *ctrl)
 {
 	struct tavarua_device *radio = video_get_drvdata(video_devdata(file));
-	int retval = 0, size = 0, cnt = 0;
+	int retval = 0;
+	int size = 0, cnt = 0;
 	unsigned char value;
 	unsigned char xfr_buf[XFR_REG_NUM];
 	unsigned char tx_data[XFR_REG_NUM];
 	unsigned char dis_buf[XFR_REG_NUM];
-	unsigned int freq = 0, mpx_dcc = 0;
-	unsigned long curr = 0, prev = 0;
-
-	memset(xfr_buf, 0x0, XFR_REG_NUM);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_VOLUME:
@@ -3218,7 +3001,6 @@ static int tavarua_vidioc_s_ctrl(struct file *file, void *priv,
 		}
 		/* check if off */
 		else if ((ctrl->value == FM_OFF) && radio->registers[RDCTRL]) {
-			radio->spur_table_size = 0;
 			FMDBG("%s: turning off...\n", __func__);
 			tavarua_write_register(radio, RDCTRL, ctrl->value);
 			/* flush the event and work queues */
@@ -3501,17 +3283,9 @@ static int tavarua_vidioc_s_ctrl(struct file *file, void *priv,
 		if (retval < 0)
 			FMDBG("write failed");
 	} break;
-	case V4L2_CID_PRIVATE_SOFT_MUTE:
-		radio->registers[IOCTRL] &= ~(IOC_SFT_MUTE);
-		if (ctrl->value)
-			radio->registers[IOCTRL] |= IOC_SFT_MUTE;
-		retval = tavarua_write_register(radio, IOCTRL,
-					radio->registers[IOCTRL]);
-		if (retval < 0)
-			FMDERR("Failed to enable/disable SMute\n");
-		break;
 	/*These IOCTL's are place holders to keep the
 	driver compatible with change in frame works for IRIS */
+	case V4L2_CID_PRIVATE_SOFT_MUTE:
 	case V4L2_CID_PRIVATE_RIVA_ACCS_ADDR:
 	case V4L2_CID_PRIVATE_RIVA_ACCS_LEN:
 	case V4L2_CID_PRIVATE_RIVA_PEEK:
@@ -3519,170 +3293,13 @@ static int tavarua_vidioc_s_ctrl(struct file *file, void *priv,
 	case V4L2_CID_PRIVATE_SSBI_ACCS_ADDR:
 	case V4L2_CID_PRIVATE_SSBI_PEEK:
 	case V4L2_CID_PRIVATE_SSBI_POKE:
+	case V4L2_CID_PRIVATE_TX_TONE:
 	case V4L2_CID_PRIVATE_RDS_GRP_COUNTERS:
 	case V4L2_CID_PRIVATE_SET_NOTCH_FILTER:
 	case V4L2_CID_PRIVATE_TAVARUA_DO_CALIBRATION:
 	case V4L2_CID_PRIVATE_SINR_THRESHOLD:
 	case V4L2_CID_PRIVATE_SINR_SAMPLES:
-	case V4L2_CID_PRIVATE_SPUR_SELECTION:
 		retval = 0;
-		break;
-	case V4L2_CID_PRIVATE_SPUR_FREQ:
-		radio->spur_data.freq[radio->spur_table_size] =
-			ctrl->value;
-		break;
-	case V4L2_CID_PRIVATE_SPUR_FREQ_RMSSI:
-		radio->spur_data.rmssi[radio->spur_table_size++] =
-			ctrl->value;
-		break;
-	case V4L2_CID_PRIVATE_UPDATE_SPUR_TABLE:
-		retval = update_spur_table(radio);
-		break;
-	case V4L2_CID_PRIVATE_TX_TONE:
-		retval = 0;
-		memset(xfr_buf, 0, sizeof(xfr_buf));
-		switch (ctrl->value) {
-		case ONE_KHZ_LR_EQUA_0DBFS:
-			xfr_buf[TONE_CHANNEL_EN_AND_SCALING_BYTE]
-				= TONE_LEFT_RIGHT_CH_ENABLED;
-			xfr_buf[TONE_LEFT_FREQ_BYTE] = 0x01;
-			xfr_buf[TONE_RIGHT_FREQ_BYTE] = 0x01;
-			break;
-		case ONE_KHZ_LEFTONLY_EQUA_0DBFS:
-			xfr_buf[TONE_CHANNEL_EN_AND_SCALING_BYTE]
-				 = TONE_LEFT_CH_ENABLED;
-			xfr_buf[TONE_LEFT_FREQ_BYTE] = 0x01;
-			break;
-		case ONE_KHZ_RIGHTONLY_EQUA_0DBFS:
-			xfr_buf[TONE_CHANNEL_EN_AND_SCALING_BYTE]
-				 = TONE_RIGHT_CH_ENABLED;
-			xfr_buf[TONE_RIGHT_FREQ_BYTE] = 0x01;
-			break;
-		case ONE_KHZ_LR_EQUA_l8DBFS:
-			xfr_buf[TONE_CHANNEL_EN_AND_SCALING_BYTE]
-				 = (LSH_DATA(TONE_SCALE_IND_12,
-						 TONE_SCALING_SHIFT)
-					 | TONE_LEFT_RIGHT_CH_ENABLED);
-			xfr_buf[TONE_LEFT_FREQ_BYTE] = 0x01;
-			xfr_buf[TONE_RIGHT_FREQ_BYTE] = 0x01;
-			break;
-		case FIFTEEN_KHZ_LR_EQUA_l8DBFS:
-			xfr_buf[TONE_CHANNEL_EN_AND_SCALING_BYTE]
-				 = (LSH_DATA(TONE_SCALE_IND_12,
-						 TONE_SCALING_SHIFT)
-					 | TONE_LEFT_RIGHT_CH_ENABLED);
-			xfr_buf[TONE_LEFT_FREQ_BYTE] = 0x0F;
-			xfr_buf[TONE_RIGHT_FREQ_BYTE] = 0x0F;
-			break;
-		default:
-			retval = -1;
-			FMDERR("tone generator value not valid\n");
-			break;
-		}
-		if (retval >= 0) {
-			xfr_buf[TONE_GEN_CTRL_BYTE] = 0x01;
-			retval = sync_write_xfr(radio, XFR_EXT, xfr_buf);
-		}
-		if (retval < 0)
-			FMDERR("Tone generator failed\n");
-		break;
-	case V4L2_CID_PRIVATE_VALID_CHANNEL:
-		/* Do not notify the host of tune event */
-		atomic_set(&radio->validate_channel, 1);
-
-		FMDBG("Going into low power mode\n");
-		retval = tavarua_disable_interrupts(radio);
-
-		/*
-		 * Tune to 50KHz adjacent channel. If the requested station
-		 * falls in JAPAN band and on the lower band-limit, then the
-		 * adjacnet channel to be considered is 50KHz to the right side
-		 * of the requested station as firmware does not allows to tune
-		 * to frequency outside the range: 76000KHz to 108000KHz.
-		 */
-		if (ctrl->value == REGION_JAPAN_STANDARD_BAND_LOW)
-			freq = (ctrl->value + ADJ_CHANNEL_KHZ);
-		else
-			freq = (ctrl->value - ADJ_CHANNEL_KHZ);
-		INIT_COMPLETION(radio->sync_req_done);
-		retval = tavarua_set_freq(radio, (freq * TUNE_MULT));
-		if (retval < 0) {
-			FMDERR("Failed to tune to adjacent station\n");
-			goto error;
-		}
-		if (!wait_for_completion_timeout(&radio->sync_req_done,
-			msecs_to_jiffies(wait_timeout))) {
-			FMDERR("Timeout: No Tune response\n");
-			retval = -ETIMEDOUT;
-			goto error;
-		}
-
-		/*
-		 * Wait for a minimum of 100ms for the firmware
-		 * to start collecting the MPX_DCC values
-		 */
-		msleep(TAVARUA_DELAY * 10);
-
-		/* Compute MPX_DCC of adjacent station */
-		retval = compute_MPX_DCC(radio, &mpx_dcc);
-		if (retval < 0) {
-			FMDERR("Failed to get MPX_DCC of adjacent station\n");
-			goto error;
-		}
-		/* Calculate the absolute value of MPX_DCC */
-		prev = abs(mpx_dcc);
-
-		/* Tune back to original station */
-		INIT_COMPLETION(radio->sync_req_done);
-		retval = tavarua_set_freq(radio, (ctrl->value * TUNE_MULT));
-		if (retval < 0) {
-			FMDERR("Failed to tune to requested station\n");
-			goto error;
-		}
-		if (!wait_for_completion_timeout(&radio->sync_req_done,
-			msecs_to_jiffies(wait_timeout))) {
-			FMDERR("Timeout: No Tune response\n");
-			retval = -ETIMEDOUT;
-			goto error;
-		}
-
-		/*
-		 * Wait for a minimum of 100ms for the firmware
-		 * to start collecting the MPX_DCC values
-		 */
-		msleep(TAVARUA_DELAY * 10);
-
-		/* Compute MPX_DCC of current station */
-		retval = compute_MPX_DCC(radio, &mpx_dcc);
-		if (retval < 0) {
-			FMDERR("Failed to get MPX_DCC of current station\n");
-			goto error;
-		}
-		/* Calculate the absolute value of MPX_DCC */
-		curr = abs(mpx_dcc);
-
-		FMDBG("Going into normal power mode\n");
-		tavarua_setup_interrupts(radio,
-			(radio->registers[RDCTRL] & 0x03));
-
-		FMDBG("Absolute MPX_DCC of current station  : %lu\n", curr);
-		FMDBG("Absolute MPX_DCC of adjacent station : %lu\n", prev);
-
-		/*
-		 * For valid stations, the absolute MPX_DCC value will be within
-		 * the range 0 <= MPX_DCC <= 12566 and the MPX_DCC value of the
-		 * adjacent station will be greater than 20,000.
-		 */
-		if ((curr <= MPX_DCC_LIMIT) &&
-			(prev > MPX_DCC_UPPER_LIMIT)) {
-			FMDBG("%d KHz is A VALID STATION!\n", ctrl->value);
-			radio->is_station_valid = VALID_CHANNEL;
-		} else {
-			FMDBG("%d KHz is NOT A VALID STATION!\n", ctrl->value);
-			radio->is_station_valid = INVALID_CHANNEL;
-		}
-error:
-		atomic_set(&radio->validate_channel, 0);
 		break;
 	default:
 		retval = -EINVAL;
@@ -3690,56 +3307,6 @@ error:
 	if (retval < 0)
 		printk(KERN_WARNING DRIVER_NAME
 		": set control failed with %d, id : %d\n", retval, ctrl->id);
-
-	return retval;
-}
-
-static int compute_MPX_DCC(struct tavarua_device *radio, int *val)
-{
-
-	int DCC = 0, retval = 0;
-	int MPX_DCC[3];
-	unsigned char value;
-	unsigned char xfr_buf[XFR_REG_NUM];
-
-	/* Freeze the MPX_DCC value from changing */
-	value = CTRL_ON;
-	retval = xfr_rdwr_data(radio, XFR_WRITE, 1, MPX_DCC_BYPASS_REG, &value);
-	if (retval < 0) {
-		FMDERR("%s: Failed to freeze MPX_DCC\n", __func__);
-		return retval;
-	}
-
-	/* Measure the MPX_DCC of current station. */
-	retval = xfr_rdwr_data(radio, XFR_READ, 3, MPX_DCC_DATA_REG, xfr_buf);
-	if (retval < 0) {
-		FMDERR("%s: Failed to read MPX_DCC\n", __func__);
-		return retval;
-	}
-	MPX_DCC[0] = xfr_buf[0];
-	MPX_DCC[1] = xfr_buf[1];
-	MPX_DCC[2] = xfr_buf[2];
-	/*
-	 * Form the final MPX_DCC parameter
-	 * MPX_DCC[0] will form the LSB part
-	 * MPX_DCC[1] will be the middle part and 4 bits of
-	 * MPX_DCC[2] will be the MSB part of the 20-bit signed MPX_DCC
-	 */
-	DCC = (LSH_DATA(MPX_DCC[2], 16) | LSH_DATA(MPX_DCC[1], 8) | MPX_DCC[0]);
-
-	/* if bit-19 is '1',set remaining bits to '1' & make it -tive */
-	if (DCC & 0x00080000)
-		DCC |= 0xFFF00000;
-
-	*val = DCC;
-
-	/* Un-freeze the MPX_DCC value */
-	value = CTRL_OFF;
-	retval = xfr_rdwr_data(radio, XFR_WRITE, 1, 0x88C0, &value);
-	if (retval < 0) {
-		FMDERR("%s: Failed to un-freeze MPX_DCC\n", __func__);
-		return retval;
-	}
 
 	return retval;
 }

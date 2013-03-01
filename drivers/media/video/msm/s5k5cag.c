@@ -24,7 +24,6 @@
 #define S5K5CAG_MASTER_CLK_RATE 24000000
 #define SENSOR_DEBUG		0
 #define SENSOR_RESET		89
-#define  printkcry printk 
 #define DRIVER_NAME "s5k5cag: "
 #undef CDBG
 #ifdef S5K5CAG_DEBUG
@@ -3629,7 +3628,7 @@ static int s5k5cag_detect(void)
         CDBG("detect success, reg = 0x0, value = 0x%x\n", id);
         return 0;
     }
-      	printk("id +++++++++++++%d okaaa  not detect\n",__LINE__);
+      	///printk("id +++++++++++++%d okaaa  not detect\n",__LINE__);
 err_detect:
     PRINTK("detect failed: id = 0x%x\n", id);
     return -ENODEV;
@@ -3646,20 +3645,15 @@ static void s5k5cag_sensor_gpio_request(void)
     int rc;
     rc = gpio_request(5, "s5k5cag_pwd");
     if (rc < 0) {
-    	printkcry(" =========gpio_request(5 err %d %s  \n",__LINE__,__func__);
-        goto err;
+    	goto err;
     }
-    printkcry(" =========gpio_request(5 ok %d %s  \n",__LINE__,__func__);
     gpio_direction_output(5, 0);
     
-    //gpio_free(6);
     rc = gpio_request(6, "s5k5cag_reser33");
     if (rc < 0) {
-printkcry(" =========gpio_request(6n err %d %s  \n",__LINE__,__func__);
         goto err;
         
     }
-    printkcry(" ======gpio_request(6 ok %d %s  \n",__LINE__,__func__);
     gpio_direction_output(6, 0);
 
     return;
@@ -3709,17 +3703,16 @@ static void s5k5cag_reg_init(void)
     long rc = 0;
 
     rc = s5k5cag_i2c_write_table(&s5k5cag_init1[0], ARRAY_SIZE(s5k5cag_init1));
-    if (rc < 0)     {  printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
-        goto config_fail;}
-        printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
+    if (rc < 0)
+		goto config_fail;
+
     msleep(10);
     rc = s5k5cag_i2c_write_table(&s5k5cag_init2[0],ARRAY_SIZE(s5k5cag_init2));
-    if (rc < 0)	{       printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
-        goto config_fail;}
+    if (rc < 0)
+		goto config_fail;
 
     return;
 config_fail:
-       printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
     PRINTK("init fail");
 }
 
@@ -3815,27 +3808,17 @@ int s5k5cag_sensor_open_init(const struct msm_camera_sensor_info *info)
     s5k5cag_ctrl->pict_res = FULL_SIZE;
     if (info)
         s5k5cag_ctrl->sensordata = info;
-       printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
     msm_camio_clk_rate_set(S5K5CAG_MASTER_CLK_RATE);
-    printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
-  ///  s5k4e1_probe_init_sensor(info); ///cry
-    
-     
-    s5k5cag_power_up();
-    s5k5cag_detect();
-    s5k5cag_reg_init();
+    s5k5cag_sensor_wakeup();
     msleep(100);
-    
-printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
-    msleep(10);
-    if (s5k5cag_ctrl->prev_res == QTR_SIZE){printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
-        rc = s5k5cag_sensor_setting(REG_INIT, RES_PREVIEW);}
-    else
+
+    if (s5k5cag_ctrl->prev_res == QTR_SIZE){
+        rc = s5k5cag_sensor_setting(REG_INIT, RES_PREVIEW);
+	}else
         rc = s5k5cag_sensor_setting(REG_INIT, RES_CAPTURE);
-    if (rc < 0){printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
-        goto init_fail;}
+    if (rc < 0)
+		goto init_fail;
     PRINTK("probe done.\n");
-    printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
     return rc;
 
 init_fail:
@@ -3849,38 +3832,28 @@ static int32_t s5k5cag_set_effect(uint8_t effect)
 	 
 #if TEST
     int32_t rc = 0;
- 	printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
     CDBG("value = %d\n", effect);
     switch (effect) {
 	    case CAMERA_EFFECT_OFF:
-	    		printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
-		    rc = s5k5cag_i2c_write_table(&s5k5cag_effect_none[0], ARRAY_SIZE(s5k5cag_effect_none));
+	    	rc = s5k5cag_i2c_write_table(&s5k5cag_effect_none[0], ARRAY_SIZE(s5k5cag_effect_none));
 		    break;
 	    case CAMERA_EFFECT_MONO:	
-	    		printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
-		    break;
+	    	break;
 	    case CAMERA_EFFECT_NEGATIVE:
-	    		printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);		
-		    break;
+	    	break;
 	    case CAMERA_EFFECT_SOLARIZE:	
-	   		 printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
-		    break;
+	   		break;
 	    case CAMERA_EFFECT_SEPIA:	
-	    		printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);	
-		    rc = s5k5cag_i2c_write_table(&s5k5cag_effect_sepia[0], ARRAY_SIZE(s5k5cag_effect_sepia));
+	    	rc = s5k5cag_i2c_write_table(&s5k5cag_effect_sepia[0], ARRAY_SIZE(s5k5cag_effect_sepia));
 		    break;
 	    case CAMERA_EFFECT_POSTERIZE:
-	    		printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
-		    break;
+	    	break;
 	    case CAMERA_EFFECT_WHITEBOARD:
-	    		printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
-		    break;
+	    	break;
 	    case CAMERA_EFFECT_BLACKBOARD:	
-	    		printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
-		    break;
+	    	break;
 	    case CAMERA_EFFECT_AQUA:	
-	    		printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);	
-		    rc = s5k5cag_i2c_write_table(&s5k5cag_effect_aqua[0], ARRAY_SIZE(s5k5cag_effect_aqua));
+	    	rc = s5k5cag_i2c_write_table(&s5k5cag_effect_aqua[0], ARRAY_SIZE(s5k5cag_effect_aqua));
 		    break;
 	/***    case CAMERA_EFFECT_EMBOSSMONO:
 		    rc = s5k5cag_i2c_write_table(&s5k5cag_effect_emboss_mono[0], ARRAY_SIZE(s5k5cag_effect_emboss_mono));
@@ -3895,18 +3868,15 @@ static int32_t s5k5cag_set_effect(uint8_t effect)
 		    rc = s5k5cag_i2c_write_table(&s5k5cag_effect_negative_mono[0], ARRAY_SIZE(s5k5cag_effect_negative_mono));
 		    break;*/
 	    case CAMERA_EFFECT_SKETCH:	
-	    		printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
-		    rc = s5k5cag_i2c_write_table(&s5k5cag_effect_sketch[0], ARRAY_SIZE(s5k5cag_effect_sketch));
+	    	rc = s5k5cag_i2c_write_table(&s5k5cag_effect_sketch[0], ARRAY_SIZE(s5k5cag_effect_sketch));
 		    break;
             default:
             break;
     }
     if (rc < 0)
         PRINTK("%s Error\n", __func__);
-        printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
     return rc;
 #else
-	printkcry(" =========aid1 %d %s  \n",__LINE__,__func__);
     return 0;
 #endif 
 }
@@ -3946,34 +3916,25 @@ EXPORT_SYMBOL(s5k5cag_set_wb);
 
 int s5k5cag_set_expo_compensation(int value)
 {
-#if 1 ///TEST
-
     int rc = 0;
     CDBG("value = %d\n", value >> 16);
- ///   switch (value >> 16) {
- 	printk("  ====+ %d %s %s %d\n",__LINE__,__FUNCTION__,__FILE__,value); 
- 	switch (value ) {
+  	switch (value ) {
         case 12:
-        	printk("  ====+ %d %s %s\n",__LINE__,__FUNCTION__,__FILE__); 
-            	rc = s5k5cag_i2c_write_table(&s5k5cag_expo_positive_2[0], ARRAY_SIZE(s5k5cag_expo_positive_2));
+        	rc = s5k5cag_i2c_write_table(&s5k5cag_expo_positive_2[0], ARRAY_SIZE(s5k5cag_expo_positive_2));
             break;
         case 6:
-        	printk("  ====+ %d %s %s\n",__LINE__,__FUNCTION__,__FILE__); 
-            	rc = s5k5cag_i2c_write_table(&s5k5cag_expo_positive_1[0], ARRAY_SIZE(s5k5cag_expo_positive_1));
+        	rc = s5k5cag_i2c_write_table(&s5k5cag_expo_positive_1[0], ARRAY_SIZE(s5k5cag_expo_positive_1));
             break;
         case 0:
-        	printk("  ====+ %d %s %s\n",__LINE__,__FUNCTION__,__FILE__); 
-            rc = s5k5cag_i2c_write_table(&s5k5cag_expo_normal[0], ARRAY_SIZE(s5k5cag_expo_normal));
+        	rc = s5k5cag_i2c_write_table(&s5k5cag_expo_normal[0], ARRAY_SIZE(s5k5cag_expo_normal));
             break;
         case 250:  
         case -6:
-        	printk("  ====+ %d %s %s\n",__LINE__,__FUNCTION__,__FILE__); 
-            rc = s5k5cag_i2c_write_table(&s5k5cag_expo_negative_1[0], ARRAY_SIZE(s5k5cag_expo_negative_1));
+        	rc = s5k5cag_i2c_write_table(&s5k5cag_expo_negative_1[0], ARRAY_SIZE(s5k5cag_expo_negative_1));
             break;
         case -12:
         case 244:
-        	printk("  ====+ %d %s %s\n",__LINE__,__FUNCTION__,__FILE__); 
-            rc = s5k5cag_i2c_write_table(&s5k5cag_expo_negative_2[0], ARRAY_SIZE(s5k5cag_expo_negative_2));
+        	rc = s5k5cag_i2c_write_table(&s5k5cag_expo_negative_2[0], ARRAY_SIZE(s5k5cag_expo_negative_2));
             break;
         default:
             break;
@@ -3981,9 +3942,6 @@ int s5k5cag_set_expo_compensation(int value)
     if (rc < 0)
         PRINTK("%s error\n", __func__);
     return 0;
-#else 
-    return 0;
-#endif
 }
 EXPORT_SYMBOL(s5k5cag_set_expo_compensation);
 
@@ -4175,16 +4133,11 @@ static int s5k5cag_sensor_probe(const struct msm_camera_sensor_info *info,
 
     msm_camio_clk_rate_set(S5K5CAG_MASTER_CLK_RATE);
 
-printkcry(" =========id1 %d %s  \n",__LINE__,__func__);
     s5k5cag_sensor_gpio_request();///
     msleep(5);
     s5k5cag_power_up();
     msleep(5);
-///s5k4e1_probe_init_sensor(info);
-   /// rc = 
-   s5k5cag_detect();
-   /// if (rc < 0)
-     ///   goto probe_fail1;
+    s5k5cag_detect();
 
     s->s_init = s5k5cag_sensor_open_init;
     s->s_release = s5k5cag_sensor_release;
@@ -4192,6 +4145,7 @@ printkcry(" =========id1 %d %s  \n",__LINE__,__func__);
     s->s_mount_angle = 90;
     s5k5cag_reg_init();
     msleep(100);
+ 	s5k5cag_power_down();
 
     PRINTK("probe ok\n");
     return rc;

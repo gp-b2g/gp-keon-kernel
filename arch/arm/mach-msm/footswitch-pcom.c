@@ -92,10 +92,10 @@ static int enable_clocks(struct footswitch *fs)
 	fs->is_rate_set = !!(clk_get_rate(fs->src_clk));
 	if (!fs->is_rate_set)
 		clk_set_rate(fs->src_clk, fs->src_clk_init_rate);
-	clk_enable(fs->core_clk);
+	clk_prepare_enable(fs->core_clk);
 
 	if (fs->ahb_clk)
-		clk_enable(fs->ahb_clk);
+		clk_prepare_enable(fs->ahb_clk);
 
 	return 0;
 }
@@ -103,8 +103,8 @@ static int enable_clocks(struct footswitch *fs)
 static void disable_clocks(struct footswitch *fs)
 {
 	if (fs->ahb_clk)
-		clk_disable(fs->ahb_clk);
-	clk_disable(fs->core_clk);
+		clk_disable_unprepare(fs->ahb_clk);
+	clk_disable_unprepare(fs->core_clk);
 }
 
 static int footswitch_is_enabled(struct regulator_dev *rdev)

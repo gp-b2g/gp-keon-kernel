@@ -109,18 +109,20 @@ static unsigned convert_samp_rate(unsigned hz)
 }
 
 static struct snd_pcm_hardware msm_pcm_playback_hardware = {
-	.info =                 SNDRV_PCM_INFO_INTERLEAVED,
+	.info =                 SNDRV_PCM_INFO_MMAP |
+				SNDRV_PCM_INFO_MMAP_VALID |
+				SNDRV_PCM_INFO_INTERLEAVED,
 	.formats =              USE_FORMATS,
 	.rates =                USE_RATE,
 	.rate_min =             USE_RATE_MIN,
 	.rate_max =             USE_RATE_MAX,
 	.channels_min =         USE_CHANNELS_MIN,
 	.channels_max =         USE_CHANNELS_MAX,
-	.buffer_bytes_max =     MAX_BUFFER_PLAYBACK_SIZE,
-	.period_bytes_min =     64,
-	.period_bytes_max =     MAX_PERIOD_SIZE,
-	.periods_min =          USE_PERIODS_MIN,
-	.periods_max =          USE_PERIODS_MAX,
+	.buffer_bytes_max =     4800 * 2,
+	.period_bytes_min =     4800,
+	.period_bytes_max =     4800,
+	.periods_min =          2,
+	.periods_max =          2,
 	.fifo_size =            0,
 };
 

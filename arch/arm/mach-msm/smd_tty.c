@@ -83,8 +83,6 @@ static struct smd_config smd_configs[] = {
 	{2, "APPS_RIVA_BT_ACL", NULL, SMD_APPS_WCNSS},
 	{3, "APPS_RIVA_BT_CMD", NULL, SMD_APPS_WCNSS},
 	{4, "MBALBRIDGE", NULL, SMD_APPS_MODEM},
-	{5, "APPS_RIVA_ANT_CMD", NULL, SMD_APPS_WCNSS},
-	{6, "APPS_RIVA_ANT_DATA", NULL, SMD_APPS_WCNSS},
 	{7, "DATA1", NULL, SMD_APPS_MODEM},
 	{11, "DATA11", NULL, SMD_APPS_MODEM},
 	{21, "DATA21", NULL, SMD_APPS_MODEM},
@@ -237,7 +235,7 @@ static int smd_tty_open(struct tty_struct *tty, struct file *f)
 	int res = 0;
 	unsigned int n = tty->index;
 	struct smd_tty_info *info;
-	char *peripheral = NULL;
+	const char *peripheral = NULL;
 
 
 	if (n >= MAX_SMD_TTYS || !smd_tty[n].smd)
@@ -491,7 +489,8 @@ static int smd_tty_dummy_probe(struct platform_device *pdev)
 		if (!smd_configs[n].dev_name)
 			continue;
 
-		if (!strncmp(pdev->name, smd_configs[n].dev_name,
+		if (pdev->id == smd_configs[n].edge &&
+			!strncmp(pdev->name, smd_configs[n].dev_name,
 					SMD_MAX_CH_NAME_LEN)) {
 			complete_all(&smd_tty[idx].ch_allocated);
 			return 0;

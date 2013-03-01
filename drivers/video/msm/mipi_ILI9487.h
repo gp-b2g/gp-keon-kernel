@@ -17,4 +17,8 @@
 int mipi_ILI9487_device_register(struct msm_panel_info *pinfo,
 					u32 channel, u32 panel);
 
+//cellon,Zepeng,modify start,2013-02-25,for LCD white screen
+#define LCD_BL_EN 96
+//cellon,Zepeng,modify end,2013-02-25,for LCD white screen
+
 #endif  /* MIPI_ILI9487_H */

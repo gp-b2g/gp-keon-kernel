@@ -82,11 +82,11 @@ static int snd_msm_volume_put(struct snd_kcontrol *kcontrol,
 	spin_lock_irq(&the_locks.mixer_lock);
 	change = (msm_vol_ctl.volume != volume);
 	if (change) {
-		msm_vol_ctl.update = 1;
 		msm_vol_ctl.volume = volume;
+		msm_vol_ctl.update = 1;
 	}
 	spin_unlock_irq(&the_locks.mixer_lock);
-	return change;
+	return 0;
 }
 
 static int snd_msm_device_info(struct snd_kcontrol *kcontrol,
@@ -99,7 +99,7 @@ static int snd_msm_device_info(struct snd_kcontrol *kcontrol,
 	 * The number of devices supported is 26 (0 to 25)
 	 */
 	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 25;
+	uinfo->value.integer.max = 36;
 	return 0;
 }
 
@@ -244,7 +244,7 @@ static const DECLARE_TLV_DB_LINEAR(db_scale_linear, -5000, 1800);
 static struct snd_kcontrol_new snd_msm_controls[] = {
 	MSM_EXT_TLV("PCM Playback Volume", 0, snd_msm_volume_info, \
 	snd_msm_volume_get, snd_msm_volume_put, 0, db_scale_linear),
-	MSM_EXT("device", 1, snd_msm_device_info, snd_msm_device_get, \
+	MSM_EXT("device", 0, snd_msm_device_info, snd_msm_device_get, \
 						 snd_msm_device_put, 0),
 };
 

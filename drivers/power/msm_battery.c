@@ -15,7 +15,10 @@
  * this needs to be before <linux/kernel.h> is loaded,
  * and <linux/sched.h> loads <linux/kernel.h>
  */
+
+#ifndef DEBUG
 #define DEBUG  0
+#endif
 
 #include <linux/slab.h>
 #include <linux/earlysuspend.h>
@@ -495,8 +498,24 @@ static void msm_batt_update_psy_status(void)
 
 	/* Make correction for battery status */
 	if (battery_status == BATTERY_STATUS_INVALID_v1) {
-		if (msm_batt_info.chg_api_version < CHG_RPC_VER_3_1)
+		if (msm_batt_info.chg_api_version <= CHG_RPC_VER_4_1)
 			battery_status = BATTERY_STATUS_INVALID;
+	}
+
+	if (charger_status == msm_batt_info.charger_status &&
+	    charger_type == msm_batt_info.charger_type &&
+	    battery_status == msm_batt_info.battery_status &&
+	    battery_level == msm_batt_info.battery_level &&
+	    battery_voltage == msm_batt_info.battery_voltage &&  
+	    battery_temp == msm_batt_info.battery_temp) {
+		/* Got unnecessary event from Modem PMIC VBATT driver.
+		 * Nothing changed in Battery or charger status.
+		 */
+		unnecessary_event_count++;
+		if ((unnecessary_event_count % 20) == 1)
+			DBG_LIMIT("BATT: same event count = %u\n",
+				 unnecessary_event_count);
+		return;
 	}
 
 	unnecessary_event_count = 0;
@@ -513,14 +532,14 @@ static void msm_batt_update_psy_status(void)
 	}
 
 	if (msm_batt_info.charger_type != charger_type) {
-		if (charger_type == CHARGER_TYPE_USB_WALL ||
-		    charger_type == CHARGER_TYPE_USB_PC ||
+		if (charger_type == CHARGER_TYPE_USB_PC ||
 		    charger_type == CHARGER_TYPE_USB_CARKIT) {
 			DBG_LIMIT("BATT: USB charger plugged in\n");
 			msm_batt_info.current_chg_source = USB_CHG;
 			supp = &msm_psy_usb;
-		} else if (charger_type == CHARGER_TYPE_WALL) {
-			DBG_LIMIT("BATT: AC Wall charger plugged in\n");
+		} else if (charger_type == CHARGER_TYPE_USB_WALL ||
+		              charger_type == CHARGER_TYPE_WALL) {
+			DBG_LIMIT("BATT: AC Wall changer plugged in\n");
 			msm_batt_info.current_chg_source = AC_CHG;
 			supp = &msm_psy_ac;
 		} else {
@@ -574,8 +593,15 @@ static void msm_batt_update_psy_status(void)
 		}
 	}
 
-	battery_voltage = msm_batt_get_vbatt_voltage();
-
+	/* Correct battery voltage and status */
+	if (!battery_voltage) {
+		if (charger_status == CHARGER_STATUS_INVALID) {
+			DBG_LIMIT("BATT: Read VBATT\n");
+			battery_voltage = msm_batt_get_vbatt_voltage();
+		} else
+			/* Use previous */
+			battery_voltage = msm_batt_info.battery_voltage;
+	}
 	if (battery_status == BATTERY_STATUS_INVALID) {
 		if (battery_voltage >= msm_batt_info.voltage_min_design &&
 		    battery_voltage <= msm_batt_info.voltage_max_design) {
@@ -584,7 +610,7 @@ static void msm_batt_update_psy_status(void)
 			battery_status = BATTERY_STATUS_GOOD;
 		}
 	}
-
+	battery_voltage = msm_batt_get_vbatt_voltage();//get battery voltage again,
 	if (msm_batt_info.battery_status != battery_status) {
 		if (battery_status != BATTERY_STATUS_INVALID) {
 			msm_batt_info.batt_valid = 1;
@@ -609,7 +635,8 @@ static void msm_batt_update_psy_status(void)
 		}
 
 		if (msm_batt_info.batt_status != POWER_SUPPLY_STATUS_CHARGING) {
-			if (battery_status == BATTERY_STATUS_INVALID) {
+            if ((battery_status == BATTERY_STATUS_INVALID)&&
+                 (battery_level == BATTERY_LEVEL_INVALID)) {  // modify by rukwind.xu 20110921
 				DBG_LIMIT("BATT: Battery -> unknown\n");
 				msm_batt_info.batt_status =
 					POWER_SUPPLY_STATUS_UNKNOWN;
@@ -638,9 +665,7 @@ static void msm_batt_update_psy_status(void)
 	msm_batt_info.battery_temp 	 = battery_temp;
 	msm_batt_info.charge_current = charge_current;
 
-	if (msm_batt_info.battery_voltage != battery_voltage)
-		msm_batt_info.battery_voltage  	= battery_voltage;
-
+	msm_batt_info.battery_voltage  	= battery_voltage;
 	msm_batt_info.batt_capacity = msm_batt_info.calculate_capacity(battery_voltage);
 	DBG_LIMIT("BATT: voltage = %u mV [capacity = %d%%]\n",
 			  battery_voltage, msm_batt_info.batt_capacity);
@@ -1180,6 +1205,92 @@ static int msm_batt_cleanup(void)
 	return rc;
 }
 
+typedef struct
+{
+   u32  capacity;
+   u32  mV;
+} capacity_mV_type;
+
+static capacity_mV_type voltage_capacity_map[] =
+{	 
+   { 0,  3000 },
+   { 5,  3479 },
+   { 10, 3540 },
+   { 15, 3620 },
+   { 20, 3710 },
+   { 25, 3744 },
+   { 41, 3760 },
+   { 50, 3781 },
+   { 55, 3802 },
+   { 65, 3873 },
+   { 70, 3903 },
+   { 75, 3934 },
+   { 85, 4020 },
+   { 95, 4106 },
+   { 100,4135 }
+ };
+
+static u32 capacity_next=101,capacity=101;
+
+static u32 adc_calc_capacity_from_mV(const capacity_mV_type *table,u32  tableSize,u32 mV)
+{
+    u32 descending = 1;
+    u32 search_index=0;
+
+    /* Check if table is descending or ascending */
+    if (tableSize>1)
+    {
+      if (table[0].mV < table[1].mV)
+      {
+        descending=0;
+      }
+    }
+
+    while (search_index < tableSize)
+    {
+      if ( (descending==1) && (table[search_index].mV < mV) )
+      {
+        /* table entry is less than measured value and table is descending, stop */
+        break;
+      }
+      else if ( (descending==0) && (table[search_index].mV > mV) )
+      {
+        /* table entry is greater than measured value and table is ascending, stop */
+        break;
+      }
+      else
+      {
+        search_index++;
+      }
+    }
+
+    if (search_index==0)
+    {
+      return table[0].capacity;
+    }
+    else if (search_index==tableSize)
+    {
+      return table[tableSize-1].capacity;
+    }
+       else
+       {
+      /* result is between search_index and search_index-1 */
+      /* interpolate linearly */
+       capacity_next= ( (u32)
+                   (
+                    (table[search_index].capacity-table[search_index-1].capacity)
+                     *(mV-table[search_index-1].mV)
+                   )
+                   / (table[search_index].mV-table[search_index-1].mV)
+               )
+               + table[search_index-1].capacity;
+
+    }
+    capacity=capacity_next;
+
+	return capacity;
+}
+
 static u32 msm_batt_capacity(u32 current_voltage)
 {
 	static u32 once = 0;
@@ -1194,7 +1305,9 @@ static u32 msm_batt_capacity(u32 current_voltage)
 	else if (current_voltage >= high_voltage)
 		cur_percentage = 100;
 	else
-		cur_percentage = (current_voltage - low_voltage) * 100 / (high_voltage - low_voltage);
+		cur_percentage = adc_calc_capacity_from_mV(voltage_capacity_map,
+						 sizeof(voltage_capacity_map)/sizeof(voltage_capacity_map[0]),
+						 current_voltage);
 
 	if (0 == once)
     {

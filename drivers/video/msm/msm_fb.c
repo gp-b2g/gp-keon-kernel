@@ -41,12 +41,21 @@
 #include <linux/leds.h>
 #include <linux/pm_runtime.h>
 
+#include <mach/gpio.h>
+#include <linux/gpio.h>
+
 #define MSM_FB_C
 #include "msm_fb.h"
 #include "mddihosti.h"
 #include "tvenc.h"
 #include "mdp.h"
 #include "mdp4.h"
+
+//cellon,Zepeng,modify start,2013-02-25,for LCD white screen
+#ifdef  CONFIG_FB_MSM_MIPI_DSI_ILI9487
+#include "mipi_ILI9487.h"
+#endif
+//cellon,Zepeng,modify end,2013-02-25,for LCD white screen
 
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MSM_FB_NUM	3
@@ -92,6 +101,7 @@ u32 mddi_msg_level = 5;
 
 extern int32 mdp_block_power_cnt[MDP_MAX_BLOCK];
 extern unsigned long mdp_timer_duration;
+extern bool early_sleep_state;
 
 static int msm_fb_register(struct msm_fb_data_type *mfd);
 static int msm_fb_open(struct fb_info *info, int user);
@@ -783,6 +793,10 @@ void msm_fb_set_backlight(struct msm_fb_data_type *mfd, __u32 bkl_lvl)
 		unset_bl_level = 0;
 	}
 
+	if(!early_sleep_state && !bl_level_old)
+	{
+		return;
+	}
 	pdata = (struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
 
 	if ((pdata) && (pdata->set_backlight)) {
@@ -1602,6 +1616,7 @@ static int msm_fb_release(struct fb_info *info, int user)
 
 DEFINE_SEMAPHORE(msm_fb_pan_sem);
 
+static int power_on_bl = 0;
 static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 			      struct fb_info *info)
 {
@@ -1697,13 +1712,21 @@ static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 			     (var->activate == FB_ACTIVATE_VBL));
 	mdp_dma_pan_update(info);
 	up(&msm_fb_pan_sem);
+//cellon,Zepeng,modify start,2013-02-25,for LCD white screen
+
+#ifdef  CONFIG_FB_MSM_MIPI_DSI_ILI9487
+	if(power_on_bl < 5)
+		power_on_bl++;	
+	if(power_on_bl == 2)
+		gpio_set_value(LCD_BL_EN, 1);
+#endif
 
 	if (unset_bl_level && !bl_updated) {
 		pdata = (struct msm_fb_panel_data *)mfd->pdev->
 			dev.platform_data;
 		if ((pdata) && (pdata->set_backlight)) {
 			down(&mfd->sem);
-			msleep(20);
+			msleep(150);
 			mfd->bl_level = unset_bl_level;
 			pdata->set_backlight(mfd);
 			bl_level_old = unset_bl_level;
@@ -1711,6 +1734,7 @@ static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 			bl_updated = 1;
 		}
 	}
+//cellon,Zepeng,modify end,2013-02-25,for LCD white screen      
 
 	++mfd->panel_info.frame_count;
 	return 0;

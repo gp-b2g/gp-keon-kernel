@@ -234,36 +234,7 @@ void msm_iommu_unmap_extra(struct iommu_domain *domain,
 	}
 }
 
-int msm_iommu_map_contig_buffer(unsigned long phys,
-				unsigned int domain_no,
-				unsigned int partition_no,
-				unsigned long size,
-				unsigned long align,
-				unsigned long cached,
-				unsigned long *iova_val)
-{
-	unsigned long iova;
-	int ret;
 
-	if (size & (align - 1))
-		return -EINVAL;
-
-	ret = msm_allocate_iova_address(domain_no, partition_no, size, align,
-						&iova);
-
-	if (ret)
-		return -ENOMEM;
-
-	ret = msm_iommu_map_iova_phys(msm_get_iommu_domain(domain_no), iova,
-					phys, size, cached);
-
-	if (ret)
-		msm_free_iova_address(iova, domain_no, partition_no, size);
-	else
-		*iova_val = iova;
-
-	return ret;
-}
 struct iommu_domain *msm_get_iommu_domain(int domain_num)
 {
 	if (domain_num >= 0 && domain_num < MAX_DOMAINS)
