@@ -133,7 +133,7 @@ pure_initcall(init_cpufreq_transition_notifier_list);
 static LIST_HEAD(cpufreq_governor_list);
 static DEFINE_MUTEX(cpufreq_governor_mutex);
 
-static struct cpufreq_policy *__cpufreq_cpu_get(unsigned int cpu, int sysfs)
+struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
 {
 	struct cpufreq_policy *data;
 	unsigned long flags;
@@ -157,7 +157,7 @@ static struct cpufreq_policy *__cpufreq_cpu_get(unsigned int cpu, int sysfs)
 	if (!data)
 		goto err_out_put_module;
 
-	if (!sysfs && !kobject_get(&data->kobj))
+	if (!kobject_get(&data->kobj))
 		goto err_out_put_module;
 
 	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
@@ -170,35 +170,16 @@ err_out_unlock:
 err_out:
 	return NULL;
 }
-
-struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
-{
-	return __cpufreq_cpu_get(cpu, 0);
-}
 EXPORT_SYMBOL_GPL(cpufreq_cpu_get);
 
-static struct cpufreq_policy *cpufreq_cpu_get_sysfs(unsigned int cpu)
-{
-	return __cpufreq_cpu_get(cpu, 1);
-}
-
-static void __cpufreq_cpu_put(struct cpufreq_policy *data, int sysfs)
-{
-	if (!sysfs)
-		kobject_put(&data->kobj);
-	module_put(cpufreq_driver->owner);
-}
 
 void cpufreq_cpu_put(struct cpufreq_policy *data)
 {
-	__cpufreq_cpu_put(data, 0);
+	kobject_put(&data->kobj);
+	module_put(cpufreq_driver->owner);
 }
 EXPORT_SYMBOL_GPL(cpufreq_cpu_put);
 
-static void cpufreq_cpu_put_sysfs(struct cpufreq_policy *data)
-{
-	__cpufreq_cpu_put(data, 1);
-}
 
 /*********************************************************************
  *            EXTERNALLY AFFECTING FREQUENCY CHANGES                 *
@@ -434,49 +415,6 @@ static ssize_t store_##file_name					\
 store_one(scaling_min_freq, min);
 store_one(scaling_max_freq, max);
 
-static unsigned int	stored_min; 
-//flag=1, set to MAX
-//flag=0,restore the setting
-int cpufreq_set_min_freq(int flag)
-{									
-	unsigned int ret = -EINVAL;	
-	struct cpufreq_policy *cpu_policy;
-	struct cpufreq_policy policy;
-	struct cpufreq_policy new_policy;
-
-	ret = cpufreq_get_policy(&policy, 0);	
-	if (ret)							
-		return -EINVAL;	
-									
-	ret = cpufreq_get_policy(&new_policy, 0);	
-	if (ret)							
-		return -EINVAL;					
-
-	if (flag==1)
-	{
-		stored_min = new_policy.min;
-		//the new policy is set the min to MAX
-		new_policy.min=policy.max;
-	}
-	else
-	{
-		new_policy.min=stored_min;
-	}
-	printk("[cpufreq] [%d]change policy freq from (%x,%x) to (%x,%x)\n",flag,policy.min,policy.max,new_policy.min,new_policy.max);								
-	ret = __cpufreq_set_policy(&policy, &new_policy);	
-
-	//change to default setting
-	cpu_policy = cpufreq_cpu_get(0);
-	if (!cpu_policy)
-		return -EINVAL;
-	cpu_policy->min=policy.min;
-	cpu_policy->user_policy.min = policy.min;
-	cpufreq_cpu_put(cpu_policy);
-	
-	return ret;
-												
-}
-
 /**
  * show_cpuinfo_cur_freq - current CPU frequency as detected by hardware
  */
@@ -693,7 +631,7 @@ static ssize_t show(struct kobject *kobj, struct attribute *attr, char *buf)
 	struct cpufreq_policy *policy = to_policy(kobj);
 	struct freq_attr *fattr = to_attr(attr);
 	ssize_t ret = -EINVAL;
-	policy = cpufreq_cpu_get_sysfs(policy->cpu);
+	policy = cpufreq_cpu_get(policy->cpu);
 	if (!policy)
 		goto no_policy;
 
@@ -707,7 +645,7 @@ static ssize_t show(struct kobject *kobj, struct attribute *attr, char *buf)
 
 	unlock_policy_rwsem_read(policy->cpu);
 fail:
-	cpufreq_cpu_put_sysfs(policy);
+	cpufreq_cpu_put(policy);
 no_policy:
 	return ret;
 }
@@ -718,7 +656,7 @@ static ssize_t store(struct kobject *kobj, struct attribute *attr,
 	struct cpufreq_policy *policy = to_policy(kobj);
 	struct freq_attr *fattr = to_attr(attr);
 	ssize_t ret = -EINVAL;
-	policy = cpufreq_cpu_get_sysfs(policy->cpu);
+	policy = cpufreq_cpu_get(policy->cpu);
 	if (!policy)
 		goto no_policy;
 
@@ -732,7 +670,7 @@ static ssize_t store(struct kobject *kobj, struct attribute *attr,
 
 	unlock_policy_rwsem_write(policy->cpu);
 fail:
-	cpufreq_cpu_put_sysfs(policy);
+	cpufreq_cpu_put(policy);
 no_policy:
 	return ret;
 }

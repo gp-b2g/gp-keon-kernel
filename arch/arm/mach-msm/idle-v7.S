@@ -32,6 +32,35 @@
 #endif
 
 ENTRY(msm_arch_idle)
+#ifdef CONFIG_ARCH_MSM_KRAIT
+	mrc 	p15, 0, r0, c0, c0, 0
+	bic	r1, r0, #0xff
+	movw	r2, #0x0400
+	movt	r2, #0x511F
+	movw	r3, #0x0600
+	movt	r3, #0x510F
+	cmp	r2, r1
+	cmpne	r3, r1
+	bne	go_wfi
+
+	mrs	r0, cpsr
+	cpsid	if
+
+	mrc	p15, 7, r1, c15, c0, 5
+	bic	r2, r1, #0x20000
+	mcr	p15, 7, r2, c15, c0, 5
+	isb
+
+go_wfi:
+	wfi
+	bne	wfi_done
+	mcr	p15, 7, r1, c15, c0, 5
+	isb
+	msr	cpsr_c, r0
+
+wfi_done:
+	bx	lr
+#else
 	wfi
 #ifdef CONFIG_ARCH_MSM8X60
 	mrc	p14, 1, r1, c1, c5, 4 /* read ETM PDSR to clear sticky bit */
@@ -39,6 +68,7 @@ ENTRY(msm_arch_idle)
 	isb
 #endif
 	bx	lr
+#endif
 
 ENTRY(msm_pm_collapse)
 #if defined(CONFIG_MSM_FIQ_SUPPORT)
@@ -217,12 +247,11 @@ msm_pm_pa_to_va:
 	biceq	r3, r3, #0x400
 	mcreq	p15, 7, r3, c15, c0, 2
 #endif
-	stmfd   sp!, {lr}
-	bl      v7_flush_kern_cache_all
 #ifdef CONFIG_MSM_JTAG
+	stmfd   sp!, {lr}
 	bl      msm_jtag_restore_state
-#endif
 	ldmfd   sp!, {lr}
+#endif
 	mov     r0, #1
 	bx      lr
 	nop

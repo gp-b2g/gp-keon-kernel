@@ -219,10 +219,6 @@ static int msm_sdcc_setup_vreg(int dev_id, unsigned int enable)
 		return PTR_ERR(curr);
 
 	if (enable) {
-		if (dev_id == 1) {
-			mdelay(5);
-			pr_info("%s: mmc1 Enabling SD slot power\n", __func__);
-		}
 		set_bit(dev_id, &vreg_sts);
 
 		rc = regulator_enable(curr);
@@ -230,10 +226,6 @@ static int msm_sdcc_setup_vreg(int dev_id, unsigned int enable)
 			pr_err("%s: could not enable regulator: %d\n",
 						__func__, rc);
 	} else {
-		if (dev_id == 1) {
-			mdelay(5);
-			pr_info("%s: mmc1 Disabling SD slot power\n", __func__);
-		}
 		clear_bit(dev_id, &vreg_sts);
 
 		rc = regulator_disable(curr);

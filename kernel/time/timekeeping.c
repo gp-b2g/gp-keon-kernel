@@ -109,8 +109,6 @@ static inline s64 timekeeping_get_ns(void)
 
 	/* read clocksource: */
 	clock = timekeeper.clock;
-	if (unlikely(clock == NULL))
-		return 0;
 	cycle_now = clock->read(clock);
 
 	/* calculate the delta since the last update_wall_time: */
@@ -239,19 +237,6 @@ void getnstimeofday(struct timespec *ts)
 
 EXPORT_SYMBOL(getnstimeofday);
 
-void getnstimeofday_nolock(struct timespec *ts)
-{
-	s64 nsecs;
-
-	*ts = xtime;
-	nsecs = timekeeping_get_ns();
-
-	/* If arch requires, add in gettimeoffset() */
-	nsecs += arch_gettimeoffset();
-
-	timespec_add_ns(ts, nsecs);
-}
-
 ktime_t ktime_get(void)
 {
 	unsigned int seq;
@@ -264,8 +249,6 @@ ktime_t ktime_get(void)
 		secs = xtime.tv_sec + wall_to_monotonic.tv_sec;
 		nsecs = xtime.tv_nsec + wall_to_monotonic.tv_nsec;
 		nsecs += timekeeping_get_ns();
-		/* If arch requires, add in gettimeoffset() */
-		nsecs += arch_gettimeoffset();
 
 	} while (read_seqretry(&xtime_lock, seq));
 	/*
@@ -297,8 +280,6 @@ void ktime_get_ts(struct timespec *ts)
 		*ts = xtime;
 		tomono = wall_to_monotonic;
 		nsecs = timekeeping_get_ns();
-		/* If arch requires, add in gettimeoffset() */
-		nsecs += arch_gettimeoffset();
 
 	} while (read_seqretry(&xtime_lock, seq));
 
@@ -623,12 +604,6 @@ static struct timespec timekeeping_suspend_time;
  */
 static void __timekeeping_inject_sleeptime(struct timespec *delta)
 {
-	if (!timespec_valid(delta)) {
-		printk(KERN_WARNING "__timekeeping_inject_sleeptime: Invalid "
-					"sleep delta value!\n");
-		return;
-	}
-
 	xtime = timespec_add(xtime, *delta);
 	wall_to_monotonic = timespec_sub(wall_to_monotonic, *delta);
 	total_sleep_time = timespec_add(total_sleep_time, *delta);

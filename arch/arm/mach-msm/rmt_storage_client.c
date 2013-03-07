@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -31,7 +31,6 @@
 #include <linux/reboot.h>    //QC patch for date/time change bug
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
-#include <mach/socinfo.h>
 #include <mach/msm_rpcrouter.h>
 #ifdef CONFIG_MSM_SDIO_SMEM
 #include <mach/sdio_smem.h>
@@ -79,7 +78,6 @@ struct rmt_storage_client_info {
 	struct wake_lock wlock;
 	atomic_t wcount;
 	struct workqueue_struct *workq;
-	struct rmt_storage_event last_event;
 };
 
 struct rmt_storage_kevent {
@@ -119,7 +117,6 @@ static void rmt_storage_sdio_smem_work(struct work_struct *work);
 #endif
 
 static struct rmt_storage_client_info *rmc;
-extern uint8_t current_qcomm_mode;
 struct rmt_storage_srv *rmt_srv; //QC patch for date/time change bug
 
 #ifdef CONFIG_MSM_SDIO_SMEM
@@ -988,16 +985,13 @@ static long rmt_storage_ioctl(struct file *fp, unsigned int cmd,
 			ret = wait_event_interruptible(rmc->event_q,
 				atomic_read(&rmc->total_events) != 0);
 		}
-		if (ret < 0 || atomic_read(&rmc->total_events) == 0) {
-			pr_err("%s: wait for request ioctl err: %d\n", __func__, ret);
+		if (ret < 0)
 			break;
-          }
 		atomic_dec(&rmc->total_events);
 
 		kevent = get_event(rmc);
 		WARN_ON(kevent == NULL);
-		memcpy(&rmc->last_event,&kevent->event,sizeof(struct rmt_storage_event));
-		if (kevent && copy_to_user((void __user *)arg, &kevent->event,
+		if (copy_to_user((void __user *)arg, &kevent->event,
 			sizeof(struct rmt_storage_event))) {
 			pr_err("%s: copy to user failed\n\n", __func__);
 			ret = -EFAULT;
@@ -1642,111 +1636,6 @@ unregister_client:
 	return ret;
 }
 
-#define SHUTDOWN_WAIT_DELAY_MS	10000
-static DECLARE_COMPLETION(fs_sync_complete);
-
-void rmt_storage_client_shutdown_complete(void)
-{
-	static struct msm_rpc_client *rpc_client;
-
-	/*don't be silly wait. Add some condition that when the rmc or rpc_client is null no need to be waiting. */
-	if(rmc == NULL) {
-		pr_debug("%s: rmc is null\n", __func__);
-		return;
-	}
-	rpc_client = rmt_storage_get_rpc_client(rmc->last_event.handle);
-
-	if (!rpc_client) {
-		pr_debug("%s: rpc_client is null\n", __func__);
-		return;
-	}
-
-	wait_for_completion_timeout(&fs_sync_complete, msecs_to_jiffies(SHUTDOWN_WAIT_DELAY_MS));
-}
-
-void rmt_storage_client_shutdown_prepare(void)
-{
-	int ret = 0;
-	struct rmt_storage_send_sts status;
-	static struct msm_rpc_client *rpc_client;
-	struct rmt_storage_kevent *kevent;
-
-	pr_debug("%s: start\n", __func__);
-	rpc_client = rmt_storage_get_rpc_client(rmc->last_event.handle);
-
-	if (!rpc_client) {
-		pr_debug("%s: rpc_client is null\n", __func__);
-		complete(&fs_sync_complete);
-		return;
-	}
-	
-	rmt_storage_force_sync(rpc_client);
-	rmt_storage_get_sync_status(rpc_client);
-
-	if (atomic_read(&rmc->wcount) != 0) {
-		pr_debug("%s: wait for communicate with mp\n", __func__);
-		wake_up(&rmc->event_q);
-		ret = wait_event_interruptible_timeout(rmc->event_q,
-			atomic_read(&rmc->wcount) == 0, msecs_to_jiffies(SHUTDOWN_WAIT_DELAY_MS));
-		if(ret < 0) {
-			pr_debug("%s: wait error:%d\n", __func__, ret);
-
-			while (atomic_read(&rmc->total_events) != 0) {
-				atomic_dec(&rmc->total_events);
-
-				kevent = get_event(rmc);
-				WARN_ON(kevent == NULL);
-				
-				status.err_code = -EIO;
-				status.data = kevent->event.usr_data;
-				status.handle = kevent->event.handle;
-				status.xfer_dir = kevent->event.id;
-				rpc_client = rmt_storage_get_rpc_client(status.handle);
-				if (rpc_client)
-					ret = msm_rpc_client_req2(rpc_client,
-						RMT_STORAGE_OP_FINISH_PROC,
-						rmt_storage_send_sts_arg,
-						&status, NULL, NULL, -1);
-				else
-					ret = -EINVAL;
-				if (ret < 0)
-					pr_err("%s: send status failed with ret val = %d\n",
-						__func__, ret);
-				if (atomic_dec_return(&rmc->wcount) == 0) {
-					wake_unlock(&rmc->wlock);
-					break;
-				}
-			}
-		}
-	}
-
-	/*if stock at wait for user space just give the last event to mp a finish signal*/
-	if(atomic_read(&rmc->wcount) != 0 && atomic_read(&rmc->total_events) == 0) {
-		status.err_code = -EIO;
-		status.data = rmc->last_event.usr_data;
-		status.handle = rmc->last_event.handle;
-		status.xfer_dir = rmc->last_event.id;
-		rpc_client = rmt_storage_get_rpc_client(status.handle);
-		if (rpc_client)
-			ret = msm_rpc_client_req2(rpc_client,
-				RMT_STORAGE_OP_FINISH_PROC,
-				rmt_storage_send_sts_arg,
-				&status, NULL, NULL, -1);
-		else
-			ret = -EINVAL;
-		if (ret < 0)
-			pr_err("%s: send status failed with ret val = %d\n",
-				__func__, ret);
-		if (atomic_dec_return(&rmc->wcount) == 0) {
-			wake_unlock(&rmc->wlock);
-		}
-	}
-
-
-	complete(&fs_sync_complete);
-
-}
-
 static void rmt_storage_client_shutdown(struct platform_device *pdev)
 {
 	struct rpcsvr_platform_device *dev;
@@ -1754,15 +1643,7 @@ static void rmt_storage_client_shutdown(struct platform_device *pdev)
 
 	dev = container_of(pdev, struct rpcsvr_platform_device, base);
 	srv = rmt_storage_get_srv(dev->prog);
-	/*to shutdown the work more elegant*/
-	pr_debug("%s\n", __func__);
-
-	rmt_storage_client_shutdown_prepare();
-
-
-	cancel_delayed_work_sync(&srv->restart_work);
 	rmt_storage_set_client_status(srv, 0);
-	pr_debug("%s end\n", __func__);
 }
 
 static void rmt_storage_destroy_rmc(void)
@@ -1783,7 +1664,6 @@ static void __init rmt_storage_init_client_info(void)
 	 * its open requests. Hence reserve 0 bit.  */
 	__set_bit(0, &rmc->cids);
 	atomic_set(&rmc->wcount, 0);
-	memset(&rmc->last_event,0,sizeof(struct rmt_storage_event));
 	wake_lock_init(&rmc->wlock, WAKE_LOCK_SUSPEND, "rmt_storage");
 }
 
@@ -1839,19 +1719,6 @@ static uint32_t rmt_storage_get_sid(const char *path)
 		return RAMFS_SSD_STORAGE_ID;
 	return 0;
 }
-
-static int __init boot_up_mode_setup(char *bootupmode)
-{
-	if(!strcmp(bootupmode,"recovery"))
-		current_qcomm_mode = MSM_BOOT_RECOVERY;  //FIX FOR RECOVERY MODE QCN UPDATE
-	else if(!strcmp(bootupmode,"ftm"))
-		current_qcomm_mode = MSM_BOOT_FTM;
-	else
-		current_qcomm_mode = MSM_BOOT_NORMAL;
-	return 1;
-}
-__setup("androidboot.bootupmode=", boot_up_mode_setup);
-
 
 static int __init rmt_storage_init(void)
 {
@@ -1932,7 +1799,6 @@ unreg_msm_rpc:
 rmc_free:
 	rmt_storage_destroy_rmc();
 	kfree(rmc);
-	rmc = NULL;
 	return ret;
 }
 

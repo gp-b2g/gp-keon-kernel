@@ -1317,7 +1317,7 @@ static int msm_pm_power_collapse_standalone(void)
 	ret = msm_spm_set_low_power_mode(MSM_SPM_MODE_CLOCK_GATING, false);
 	WARN_ON(ret);
 
-	return 0;
+	return !collapsed;
 }
 
 /*
@@ -1717,13 +1717,11 @@ static struct platform_suspend_ops msm_pm_ops = {
 /******************************************************************************
  * Restart Definitions
  *****************************************************************************/
-extern void rmt_storage_client_shutdown_complete(void);
 
 static uint32_t restart_reason = 0x776655AA;
 
 static void msm_pm_power_off(void)
 {
-	rmt_storage_client_shutdown_complete();
 	msm_rpcrouter_close();
 	msm_proc_comm(PCOM_POWER_DOWN, 0, 0);
 	for (;;)
@@ -1732,7 +1730,6 @@ static void msm_pm_power_off(void)
 
 static void msm_pm_restart(char str, const char *cmd)
 {
-	rmt_storage_client_shutdown_complete();
 	msm_rpcrouter_close();
 	msm_proc_comm(PCOM_RESET_CHIP_IMM, &restart_reason, 0);
 
@@ -1751,8 +1748,6 @@ static int msm_reboot_call
 			restart_reason = 0x77665502;
 		} else if (!strcmp(cmd, "eraseflash")) {
 			restart_reason = 0x776655EF;
-		} else if (!strcmp(cmd, "dload")) {
-			restart_reason = 0x77665543;
 		} else if (!strncmp(cmd, "oem-", 4)) {
 			unsigned code = simple_strtoul(cmd + 4, 0, 16) & 0xff;
 			restart_reason = 0x6f656d00 | code;
