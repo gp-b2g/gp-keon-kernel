@@ -934,7 +934,6 @@ static struct msm_panel_common_pdata mdp_pdata = {
 #define GPIO_LCDC_BRDG_RESET_N	4
 #define GPIO_LCDC_BL_EN	96
 #define GPIO_LCDC_BRDG_PD	97
-#define GPIO_LCDC_ID	124
 
 #define LCDC_RESET_PHYS		0x90008014
 
@@ -1013,7 +1012,7 @@ gpio_error:
 }
 
 static int dsi_gpio_initialized;
-
+static int first_on = 0;
 static int mipi_dsi_panel_power(int on)
 {
 	int  rc = 0;
@@ -1031,7 +1030,18 @@ static int mipi_dsi_panel_power(int on)
 			gpio_set_value_cansleep(GPIO_LCDC_BL_EN, 0);
 			dsi_gpio_initialized = 2;
 		}
-		
+		if(first_on == 0){
+			msleep(50);			
+			gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 1);
+			msleep(20);
+			gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 1);
+			msleep(20);
+			gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 0);
+			msleep(50);
+			gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 0);
+			msleep(125);
+			first_on = 1;
+		}
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 1);
 		msleep(1);
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 0);
@@ -1103,6 +1113,49 @@ static void __init msm7x27a_init_ebi2(void)
 
 #ifdef CONFIG_TOUCHSCREEN_EKTF2K
 #define  EKTF2K_TS_GPIO_IRQ 82
+
+static struct regulator_bulk_data regs_elan_ktf2k[] = {
+	{ .supply = "ldo12",  .min_uV = 2850000, .max_uV = 3300000 },
+	{ .supply = "smps3", .min_uV = 1800000, .max_uV = 1800000 },
+};
+
+static int elan_ktf2k_ts_power(void)
+{
+	int rc;
+	
+	rc = regulator_bulk_get(NULL, ARRAY_SIZE(regs_elan_ktf2k), regs_elan_ktf2k);
+	if (rc) {
+		printk("%s: could not get regulators: %d\n",
+				__func__, rc);
+		goto out;
+	}
+
+	rc = regulator_bulk_set_voltage(ARRAY_SIZE(regs_elan_ktf2k), regs_elan_ktf2k);
+	if (rc) {
+		printk("%s: could not set voltages: %d\n",
+				__func__, rc);
+		goto reg_free;
+	}
+	regulator_bulk_enable(ARRAY_SIZE(regs_elan_ktf2k), regs_elan_ktf2k);
+
+	msleep(5);
+
+	rc = gpio_tlmm_config(GPIO_CFG(EKTF2K_TS_GPIO_IRQ, 0,
+				GPIO_CFG_INPUT, GPIO_CFG_PULL_UP,
+				GPIO_CFG_8MA), GPIO_CFG_ENABLE);
+	if (rc) {
+		pr_err("%s: gpio_tlmm_config for %d failed\n",
+				__func__, EKTF2K_TS_GPIO_IRQ);
+	}
+
+	return rc;
+
+reg_free:
+	regulator_bulk_free(ARRAY_SIZE(regs_elan_ktf2k), regs_elan_ktf2k);
+out:
+	return rc;
+}
+
 struct elan_ktf2k_i2c_platform_data ts_elan_ktf2k_data[] = {
         {
                 .version = 0x0001,
@@ -1121,7 +1174,6 @@ static struct i2c_board_info ktf2k_device[] = {
         },
 };
 #endif 
-
 
 // Cellon modify end, Zepeng Wu, 2013/2/17, for TP
 
@@ -1320,6 +1372,7 @@ static void __init msm7x2x_init(void)
 	msm7627a_bt_power_init();
 #endif
 #ifdef CONFIG_TOUCHSCREEN_EKTF2K
+	elan_ktf2k_ts_power();
 	i2c_register_board_info(MSM_GSBI1_QUP_I2C_BUS_ID,
 		ktf2k_device,
 		ARRAY_SIZE(ktf2k_device));

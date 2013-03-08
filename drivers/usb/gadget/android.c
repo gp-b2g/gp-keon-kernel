@@ -1527,7 +1527,6 @@ static int __devinit android_probe(struct platform_device *pdev)
 
 static struct platform_driver android_platform_driver = {
 	.driver = { .name = "android_usb"},
-	.probe = android_probe,
 };
 
 static int __init init(void)

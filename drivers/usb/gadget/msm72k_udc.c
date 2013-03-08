@@ -1260,13 +1260,13 @@ static irqreturn_t usb_interrupt(int irq, void *data)
 		if (atomic_read(&ui->configured)) {
 			wake_lock(&ui->wlock);
 
-			spin_lock_irqsave(&ui->lock, flags);
-			ui->usb_state = USB_STATE_CONFIGURED;
-			ui->flags = USB_FLAG_CONFIGURED;
-			spin_unlock_irqrestore(&ui->lock, flags);
+//			spin_lock_irqsave(&ui->lock, flags);
+//			ui->usb_state = USB_STATE_CONFIGURED;
+//			ui->flags = USB_FLAG_CONFIGURED;
+//			spin_unlock_irqrestore(&ui->lock, flags);
 
 			ui->driver->resume(&ui->gadget);
-			schedule_work(&ui->work);
+//			schedule_work(&ui->work);
 		} else {
 			msm_hsusb_set_state(USB_STATE_DEFAULT);
 		}
