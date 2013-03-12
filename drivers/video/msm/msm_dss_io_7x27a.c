@@ -30,7 +30,6 @@ static struct clk *mdp_dsi_pclk;
 static struct clk *ahb_m_clk;
 static struct clk *ahb_s_clk;
 static struct clk *ebi1_dsi_clk;
-int mipi_dsi_clk_on;
 
 void mipi_dsi_clk_init(struct platform_device *pdev)
 {
@@ -92,24 +91,18 @@ void mipi_dsi_clk_init(struct platform_device *pdev)
 
 mipi_dsi_clk_err:
 	mipi_dsi_clk_deinit(NULL);
+
 }
 
 void mipi_dsi_clk_deinit(struct device *dev)
 {
-	if (mdp_dsi_pclk)
-		clk_put(mdp_dsi_pclk);
-	if (ahb_m_clk)
-		clk_put(ahb_m_clk);
-	if (ahb_s_clk)
-		clk_put(ahb_s_clk);
-	if (dsi_ref_clk)
-		clk_put(dsi_ref_clk);
-	if (dsi_byte_div_clk)
-		clk_put(dsi_byte_div_clk);
-	if (dsi_esc_clk)
-		clk_put(dsi_esc_clk);
-	if (ebi1_dsi_clk)
-		clk_put(ebi1_dsi_clk);
+	clk_put(mdp_dsi_pclk);
+	clk_put(ahb_m_clk);
+	clk_put(ahb_s_clk);
+	clk_put(dsi_ref_clk);
+	clk_put(dsi_byte_div_clk);
+	clk_put(dsi_esc_clk);
+	clk_put(ebi1_dsi_clk);
 }
 
 static void mipi_dsi_clk_ctrl(struct dsi_clk_desc *clk, int clk_en)
@@ -416,9 +409,9 @@ void update_lane_config(struct msm_panel_info *pinfo)
 	struct mipi_dsi_phy_ctrl *pd;
 
 	pd = (pinfo->mipi).dsi_phy_db;
-	//pinfo->mipi.data_lane1 = FALSE;
+	pinfo->mipi.data_lane1 = FALSE;
 	pd->pll[10] |= 0x08;
-#if 0
+
 	pinfo->yres = 480;
 	pinfo->lcdc.h_back_porch = 15;
 	pinfo->lcdc.h_front_porch = 21;
@@ -426,6 +419,5 @@ void update_lane_config(struct msm_panel_info *pinfo)
 	pinfo->lcdc.v_back_porch = 50;
 	pinfo->lcdc.v_front_porch = 101;
 	pinfo->lcdc.v_pulse_width = 50;
-#endif
 }
 #endif

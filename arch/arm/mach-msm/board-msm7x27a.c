@@ -806,15 +806,15 @@ static struct platform_device *surf_ffa_devices[] __initdata = {
 	&msm_device_snd,
 	&msm_device_adspdec,
 	&msm_fb_device,
+	&msm_batt_device,
 	&smsc911x_device,
 #ifdef CONFIG_FB_MSM_MIPI_DSI
 	&mipi_dsi_ILI9487_panel_device,
 #endif
+	&msm_kgsl_3d0,
 	&asoc_msm_pcm,
 	&asoc_msm_dai0,
 	&asoc_msm_dai1,
-	&msm_kgsl_3d0,
-	&msm_batt_device,
 };
 
 static unsigned pmem_kernel_ebi1_size = PMEM_KERNEL_EBI1_SIZE;
@@ -931,9 +931,10 @@ static struct msm_panel_common_pdata mdp_pdata = {
 
 
 #ifdef CONFIG_FB_MSM
+#define GPIO_LCDC_BRDG_PD	128
 #define GPIO_LCDC_BRDG_RESET_N	4
 #define GPIO_LCDC_BL_EN	96
-#define GPIO_LCDC_BRDG_PD	97
+#define GPIO_LCDC_ID	124
 
 #define LCDC_RESET_PHYS		0x90008014
 
@@ -953,7 +954,15 @@ enum {
 
 static int msm_fb_get_lane_config(void)
 {
-	return DSI_TWO_LANES;
+	int rc = DSI_TWO_LANES;
+
+	if (machine_is_msm7625a_surf() || machine_is_msm7625a_ffa()) {
+		rc = DSI_SINGLE_LANE;
+		pr_info("DSI Single Lane\n");
+	} else {
+		pr_info("DSI Two Lanes\n");
+	}
+	return rc;
 }
 
 static int msm_fb_dsi_client_reset(void)
@@ -983,9 +992,11 @@ static int msm_fb_dsi_client_reset(void)
 		pr_err("Failed to enable LCDC Bridge pd enable\n");
 		goto gpio_error2;
 	}
+
 	rc = gpio_direction_output(GPIO_LCDC_BRDG_RESET_N, 1);
 	rc |= gpio_direction_output(GPIO_LCDC_BRDG_PD, 1);
 	gpio_set_value_cansleep(GPIO_LCDC_BL_EN, 1);
+	gpio_set_value_cansleep(GPIO_LCDC_ID, 1);
 	gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 1);
 
 	if (!rc) {
@@ -1000,7 +1011,6 @@ static int msm_fb_dsi_client_reset(void)
 	} else {
 		goto gpio_error;
 	}
-
 gpio_error2:
 	pr_err("Failed GPIO bridge pd\n");
 	gpio_free(GPIO_LCDC_BRDG_PD);
@@ -1012,7 +1022,7 @@ gpio_error:
 }
 
 static int dsi_gpio_initialized;
-static int first_on = 0;
+
 static int mipi_dsi_panel_power(int on)
 {
 	int  rc = 0;
@@ -1028,20 +1038,13 @@ static int mipi_dsi_panel_power(int on)
 	if (on){
 		if(dsi_gpio_initialized == 1){
 			gpio_set_value_cansleep(GPIO_LCDC_BL_EN, 0);
+			gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 1);
+			gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 1);
+			gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 0);
+			gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 0);
 			dsi_gpio_initialized = 2;
 		}
-		if(first_on == 0){
-			msleep(50);			
-			gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 1);
-			msleep(20);
-			gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 1);
-			msleep(20);
-			gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 0);
-			msleep(50);
-			gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 0);
-			msleep(125);
-			first_on = 1;
-		}
+		
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 1);
 		msleep(1);
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 0);
@@ -1113,49 +1116,6 @@ static void __init msm7x27a_init_ebi2(void)
 
 #ifdef CONFIG_TOUCHSCREEN_EKTF2K
 #define  EKTF2K_TS_GPIO_IRQ 82
-
-static struct regulator_bulk_data regs_elan_ktf2k[] = {
-	{ .supply = "ldo12",  .min_uV = 2850000, .max_uV = 3300000 },
-	{ .supply = "smps3", .min_uV = 1800000, .max_uV = 1800000 },
-};
-
-static int elan_ktf2k_ts_power(void)
-{
-	int rc;
-	
-	rc = regulator_bulk_get(NULL, ARRAY_SIZE(regs_elan_ktf2k), regs_elan_ktf2k);
-	if (rc) {
-		printk("%s: could not get regulators: %d\n",
-				__func__, rc);
-		goto out;
-	}
-
-	rc = regulator_bulk_set_voltage(ARRAY_SIZE(regs_elan_ktf2k), regs_elan_ktf2k);
-	if (rc) {
-		printk("%s: could not set voltages: %d\n",
-				__func__, rc);
-		goto reg_free;
-	}
-	regulator_bulk_enable(ARRAY_SIZE(regs_elan_ktf2k), regs_elan_ktf2k);
-
-	msleep(5);
-
-	rc = gpio_tlmm_config(GPIO_CFG(EKTF2K_TS_GPIO_IRQ, 0,
-				GPIO_CFG_INPUT, GPIO_CFG_PULL_UP,
-				GPIO_CFG_8MA), GPIO_CFG_ENABLE);
-	if (rc) {
-		pr_err("%s: gpio_tlmm_config for %d failed\n",
-				__func__, EKTF2K_TS_GPIO_IRQ);
-	}
-
-	return rc;
-
-reg_free:
-	regulator_bulk_free(ARRAY_SIZE(regs_elan_ktf2k), regs_elan_ktf2k);
-out:
-	return rc;
-}
-
 struct elan_ktf2k_i2c_platform_data ts_elan_ktf2k_data[] = {
         {
                 .version = 0x0001,
@@ -1372,7 +1332,6 @@ static void __init msm7x2x_init(void)
 	msm7627a_bt_power_init();
 #endif
 #ifdef CONFIG_TOUCHSCREEN_EKTF2K
-	elan_ktf2k_ts_power();
 	i2c_register_board_info(MSM_GSBI1_QUP_I2C_BUS_ID,
 		ktf2k_device,
 		ARRAY_SIZE(ktf2k_device));

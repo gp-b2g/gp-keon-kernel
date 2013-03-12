@@ -319,8 +319,6 @@ enum msm_mdp_hw_revision {
 	MDP_REV_40,
 	MDP_REV_41,
 	MDP_REV_42,
-	MDP_REV_43,
-	MDP_REV_44,
 };
 
 struct msm_panel_common_pdata {
@@ -375,7 +373,6 @@ struct mipi_dsi_platform_data {
 	int (*dsi_power_save)(int on);
 	int (*dsi_client_reset)(void);
 	int (*get_lane_config)(void);
-	char (*splash_is_enabled)(void);
 	int target_type;
 };
 

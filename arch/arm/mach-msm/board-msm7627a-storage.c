@@ -232,11 +232,6 @@ static int msm_sdcc_setup_vreg(int dev_id, unsigned int enable)
 		if (rc)
 			pr_err("%s: could not disable regulator: %d\n",
 						__func__, rc);
-		rc = pmic_vreg_pull_down_switch(ON_CMD, PM_VREG_PDOWN_MMC_ID);
-		if (rc)
-			pr_err("%s: pmic_vreg_pull_down_switch failed = %d\n", __func__, rc);
-
-		mdelay(5);		
 	}
 	return rc;
 }

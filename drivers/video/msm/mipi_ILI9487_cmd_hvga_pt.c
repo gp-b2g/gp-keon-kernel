@@ -14,6 +14,8 @@
 #include "mipi_dsi.h"
 #include "mipi_ILI9487.h"
 
+#define USE_HW_VSYNC
+
 static struct msm_panel_info pinfo;
 
 static struct mipi_dsi_phy_ctrl dsi_cmd_mode_phy_db = {
@@ -25,20 +27,22 @@ static struct mipi_dsi_phy_ctrl dsi_cmd_mode_phy_db = {
 	/* phy ctrl */
 	{0x7f, 0x00, 0x00, 0x00},
 	/* strength */
-	{0xee, 0x02, 0x06, 0x00},
+	{0xee, 0x00, 0x06, 0x00},
 	/* pll control */
-	{0x40, 0xec, 0xb1, 0xda, 0x00, 0x50, 0x48, 0x63,
-	0x01, 0x0f, 0x0f,
-	0x05, 0x14, 0x03, 0x00, 0x00, 0x54, 0x06, 0x10, 0x04, 0x00},
+	{0x01, 0xec, 0x31, 0xd2, 0x00, 0x40, 0x37, 0x62,
+	0x01, 0x0f, 0x07,
+	0x05, 0x14, 0x03, 0x0, 0x0, 0x0, 0x20, 0x0, 0x02, 0x0},
 };
 
-static int mipi_cmd_ILI9487_hvga_pt_init(void)
+static int __init mipi_cmd_ILI9487_hvga_pt_init(void)
 {
 	int ret;
 
+#ifdef CONFIG_FB_MSM_MIPI_PANEL_DETECT
 	if (msm_fb_detect_client("mipi_cmd_ILI9487_hvga"))
 		return 0;
-	
+#endif
+
 	pinfo.xres = 320;
 	pinfo.yres = 480;
 	pinfo.type = MIPI_CMD_PANEL;
@@ -47,10 +51,10 @@ static int mipi_cmd_ILI9487_hvga_pt_init(void)
 	pinfo.bpp = 24;
 	pinfo.lcdc.h_back_porch = 20;
 	pinfo.lcdc.h_front_porch = 40;
-	pinfo.lcdc.h_pulse_width = 1;
+	pinfo.lcdc.h_pulse_width = 4;
 	pinfo.lcdc.v_back_porch = 8;
 	pinfo.lcdc.v_front_porch = 8;
-	pinfo.lcdc.v_pulse_width = 1;
+	pinfo.lcdc.v_pulse_width = 4;
 
 	pinfo.lcdc.border_clr = 0;	/* blk */
 	pinfo.lcdc.underflow_clr = 0xff;	/* blue */
@@ -59,8 +63,14 @@ static int mipi_cmd_ILI9487_hvga_pt_init(void)
 	pinfo.bl_min = 0;
 	pinfo.fb_num = 2;
 
-	pinfo.clk_rate = 754000000;
-	pinfo.lcd.refx100 = 6000; /* adjust refx100 to prevent tearing */
+	pinfo.clk_rate =800000000;
+
+#ifdef USE_HW_VSYNC
+	pinfo.lcd.vsync_enable = TRUE;
+	pinfo.lcd.hw_vsync_mode = TRUE;
+	pinfo.lcd.vsync_notifier_period = (1 * HZ); 
+#endif
+	pinfo.lcd.refx100 = 6150; /* adjust refx100 to prevent tearing */
 
 	pinfo.mipi.mode = DSI_CMD_MODE;
 	pinfo.mipi.dst_format = DSI_CMD_DST_FORMAT_RGB888;
@@ -75,7 +85,11 @@ static int mipi_cmd_ILI9487_hvga_pt_init(void)
 	pinfo.mipi.stream = 0; /* dma_p */
 	pinfo.mipi.mdp_trigger = DSI_CMD_TRIGGER_SW_TE;
 	pinfo.mipi.dma_trigger = DSI_CMD_TRIGGER_SW;
+#ifdef USE_HW_VSYNC
 	pinfo.mipi.te_sel = 1; /* TE from vsync gpio */
+#else
+	pinfo.mipi.te_sel = 0; /* TE from vsync gpio */
+#endif
 	pinfo.mipi.interleave_max = 1;
 	pinfo.mipi.insert_dcs_cmd = TRUE;
 	pinfo.mipi.wr_mem_continue = 0x3c;

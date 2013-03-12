@@ -33,8 +33,6 @@
 static int first_pixel_start_x;
 static int first_pixel_start_y;
 
-static int first_time_video_on = 1;
-
 int mdp_dsi_video_on(struct platform_device *pdev)
 {
 	int dsi_width;
@@ -75,7 +73,7 @@ int mdp_dsi_video_on(struct platform_device *pdev)
 	struct fb_var_screeninfo *var;
 	struct msm_fb_data_type *mfd;
 	int ret;
-	uint32 mask, curr;
+	uint32_t mask, curr;
 
 	mfd = (struct msm_fb_data_type *)platform_get_drvdata(pdev);
 
@@ -144,8 +142,8 @@ int mdp_dsi_video_on(struct platform_device *pdev)
 	MDP_OUTP(MDP_BASE + DMA_P_BASE + 0x10, 0);
 
 	/* dma config */
-	curr = inpdw(MDP_BASE + 0x90000);
-	mask = 0xBFFFFFFF;
+	curr = inpdw(MDP_BASE + DMA_P_BASE);
+	mask = 0x0FFFFFFF;
 	dma2_cfg_reg = (dma2_cfg_reg & mask) | (curr & ~mask);
 	MDP_OUTP(MDP_BASE + DMA_P_BASE, dma2_cfg_reg);
 
@@ -207,13 +205,6 @@ int mdp_dsi_video_on(struct platform_device *pdev)
 	MDP_OUTP(MDP_BASE + DSI_VIDEO_BASE + 0x30, dsi_hsync_skew);
 	MDP_OUTP(MDP_BASE + DSI_VIDEO_BASE + 0x38, ctrl_polarity);
 
-	if(first_time_video_on) {
-		first_time_video_on = 0;
-		MDP_OUTP(MDP_BASE + DSI_VIDEO_BASE, 0);
-		/*Turning off DMA_P block*/
-		mdp_pipe_ctrl(MDP_DMA2_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-		mdelay(1);
-	}
 	ret = panel_next_on(pdev);
 	if (ret == 0) {
 		/* enable DSI block */

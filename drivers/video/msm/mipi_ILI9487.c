@@ -25,6 +25,7 @@ static struct dsi_buf ILI9487_tx_buf;
 static struct dsi_buf ILI9487_rx_buf;
 spinlock_t ILI9487_spin_lock;
 
+
 static char ILI9487_command1[] = {
         0xF2, 0x58, 0x10, 0x12, 0X02, 0x92
        };
@@ -32,7 +33,7 @@ static char ILI9487_command1[] = {
 static char ILI9487_command2[] = {
 	0xF7, 0xA9, 0x51, 0x2C, 0x8A
 	};
-
+   
 static char ILI9487_command3[] = {
 	0xFC, 0x00, 0x09
 	};
@@ -96,6 +97,7 @@ static char ILI9487_command17[] = {0x11};
 static char ILI9487_command18[] = {0x29};
 static char ILI9487_command19[] = {0x2C};
 
+
 static char display_bringtness[] = {
 	0x51, 0xff,
 };
@@ -106,6 +108,7 @@ static char crtl_display[] = {
 static char cabc[2] = {
 	0x55, 0x80,
 };
+
 
 static struct dsi_cmd_desc ILI9487_cmd_display_on_cmds[] = {
 	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command1), ILI9487_command1},
@@ -148,6 +151,8 @@ static void mipi_ILI9487_set_backlight(struct msm_fb_data_type *mfd)
 	unsigned long flags;
 	int i;
 
+	printk("%s, level = %d\n", __func__, level);
+
 	spin_lock_irqsave(&ILI9487_spin_lock, flags); //disable local irq and preemption
 	if (level < min)
 		level = min;
@@ -159,7 +164,6 @@ static void mipi_ILI9487_set_backlight(struct msm_fb_data_type *mfd)
 		spin_unlock_irqrestore(&ILI9487_spin_lock, flags);
 		return;
 	}
-
 	for (i = 0; i < (MAX_BL_LEVEL - level + 1); i++) {
 		gpio_set_value(LCD_BL_EN, 0);
 		udelay(1);
@@ -171,9 +175,12 @@ static void mipi_ILI9487_set_backlight(struct msm_fb_data_type *mfd)
 	return;
 }
 
+// Cellon modify start, Zepeng Wu, 2013/02/25, for LCD
 static int mipi_ILI9487_lcd_on(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
+
+	printk("%s: Enter, 20121214\n", __func__);
 
 	mfd = platform_get_drvdata(pdev);
 	if (!mfd)
@@ -181,36 +188,41 @@ static int mipi_ILI9487_lcd_on(struct platform_device *pdev)
 	if (mfd->key != MFD_KEY)
 		return -EINVAL;
 
-	mipi_set_tx_power_mode(1);
+
 	mipi_dsi_cmds_tx(mfd,&ILI9487_tx_buf,
-					 ILI9487_cmd_display_on_cmds,
-					 ARRAY_SIZE(ILI9487_cmd_display_on_cmds));
-	mipi_set_tx_power_mode(0);
-	
+		ILI9487_cmd_display_on_cmds,
+		ARRAY_SIZE(ILI9487_cmd_display_on_cmds));
+
+
+	printk("%s: Done\n", __func__);
 	return 0;
 }
+// Cellon modify end, Zepeng Wu, 2013/02/25, for LCD
 
 static int mipi_ILI9487_lcd_off(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
 
+	printk("%s: Enter\n", __func__);
 	mfd = platform_get_drvdata(pdev);
 
 	if (!mfd)
 		return -ENODEV;
 	if (mfd->key != MFD_KEY)
 		return -EINVAL;
-	mipi_set_tx_power_mode(1);
+
 	mipi_dsi_cmds_tx(mfd,&ILI9487_tx_buf,
 		ILI9487_display_off_cmds,
 		ARRAY_SIZE(ILI9487_display_off_cmds));
-	mipi_set_tx_power_mode(0);
 
+
+	printk("%s: Done\n", __func__);
 	return 0;
 }
 
 static int __devinit mipi_ILI9487_lcd_probe(struct platform_device *pdev)
 {
+	printk("%s: Enter\n", __func__);
 	if (pdev->id == 0) {
 		mipi_ILI9487_pdata = pdev->dev.platform_data;
 		return 0;
@@ -219,6 +231,7 @@ static int __devinit mipi_ILI9487_lcd_probe(struct platform_device *pdev)
 	spin_lock_init(&ILI9487_spin_lock);
 	msm_fb_add_device(pdev);
 
+	printk("%s: Done\n", __func__);
 	return 0;
 }
 
@@ -242,6 +255,9 @@ int mipi_ILI9487_device_register(struct msm_panel_info *pinfo,
 {
 	struct platform_device *pdev = NULL;
 	int ret;
+
+	printk("%s\n", __func__);
+
 	if ((channel >= 3) || ch_used[channel])
 		return -ENODEV;
 
@@ -274,6 +290,8 @@ int mipi_ILI9487_device_register(struct msm_panel_info *pinfo,
 
 static int __init mipi_ILI9487_lcd_init(void)
 {
+	printk("%s\n", __func__);
+
 	mipi_dsi_buf_alloc(&ILI9487_tx_buf, DSI_BUF_SIZE);
 	mipi_dsi_buf_alloc(&ILI9487_rx_buf, DSI_BUF_SIZE);
 
@@ -281,3 +299,4 @@ static int __init mipi_ILI9487_lcd_init(void)
 }
 
 module_init(mipi_ILI9487_lcd_init);
+

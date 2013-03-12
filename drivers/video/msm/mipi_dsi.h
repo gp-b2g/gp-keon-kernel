@@ -51,8 +51,7 @@
 #define MIPI_DSI_PANEL_QHD_PT 5
 #define MIPI_DSI_PANEL_WXGA	6
 #define MIPI_DSI_PANEL_WUXGA	7
-#define MIPI_DSI_PANEL_720P_PT	8
-#define DSI_PANEL_MAX	8
+#define DSI_PANEL_MAX	7
 
 enum {		/* mipi dsi panel */
 	DSI_VIDEO_MODE,
@@ -116,9 +115,6 @@ enum dsi_trigger_type {
 #define DSI_INTR_CMD_MDP_DONE		BIT(8)
 #define DSI_INTR_CMD_DMA_DONE_MASK	BIT(1)
 #define DSI_INTR_CMD_DMA_DONE		BIT(0)
-
-#define DSI_MDP_TERM	BIT(8)
-#define DSI_CMD_TERM	BIT(0)
 
 #define DSI_CMD_TRIGGER_NONE		0x0	/* mdp trigger */
 #define DSI_CMD_TRIGGER_TE		0x02

@@ -162,7 +162,7 @@ int mdp_lcdc_on(struct platform_device *pdev)
 #endif
 
 	/* starting address */
-//	MDP_OUTP(MDP_BASE + dma_base + 0x8, (uint32) buf);
+	MDP_OUTP(MDP_BASE + dma_base + 0x8, (uint32) buf);
 	/* active window width and height */
 	MDP_OUTP(MDP_BASE + dma_base + 0x4, ((fbi->var.yres) << 16) |
 						(fbi->var.xres));
