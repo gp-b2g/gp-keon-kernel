@@ -19,19 +19,21 @@
 static struct msm_panel_info pinfo;
 
 static struct mipi_dsi_phy_ctrl dsi_cmd_mode_phy_db = {
+	/* DSI_BIT_CLK at 293MHz, 1 lane, RGB888, Tclk_trail, Tclk_prepare+Tclk_zero */
 	/* regulator */
 	{0x03, 0x01, 0x01, 0x00},
-	/* timing   */
-	{0xc9, 0x9e, 0x2f, 0x00, 0xa8, 0xac, 0x32, 0xa0,
-	0x28, 0x13, 0x14},
+	/* timing	*/
+	{0x47, 0x16, 0x0f, 0x00, 0x2a, 0x20, 0x16,
+	0x17, 0x0e, 0x03, 0x04},
 	/* phy ctrl */
 	{0x7f, 0x00, 0x00, 0x00},
 	/* strength */
 	{0xee, 0x00, 0x06, 0x00},
 	/* pll control */
-	{0x01, 0xec, 0x31, 0xd2, 0x00, 0x40, 0x37, 0x62,
-	0x01, 0x0f, 0x07,
-	0x05, 0x14, 0x03, 0x0, 0x0, 0x0, 0x20, 0x0, 0x02, 0x0},
+	{0x40, 0x9b, 0xb1, 0xda, 0x00, 0x50, 0x48, 0x63,
+	/* set to 1 lane */
+	0x01, 0x0f, 0x0f,
+	0x05, 0x14, 0x03, 0x00, 0x00, 0x54, 0x06, 0x10, 0x04, 0x00},
 };
 
 static int __init mipi_cmd_ILI9487_hvga_pt_init(void)
@@ -63,12 +65,12 @@ static int __init mipi_cmd_ILI9487_hvga_pt_init(void)
 	pinfo.bl_min = 0;
 	pinfo.fb_num = 2;
 
-	pinfo.clk_rate =800000000;
+	pinfo.clk_rate =293000000;
 
 #ifdef USE_HW_VSYNC
 	pinfo.lcd.vsync_enable = TRUE;
 	pinfo.lcd.hw_vsync_mode = TRUE;
-	pinfo.lcd.vsync_notifier_period = (1 * HZ); 
+	pinfo.lcd.vsync_notifier_period = (10 * HZ); 
 #endif
 	pinfo.lcd.refx100 = 6150; /* adjust refx100 to prevent tearing */
 
@@ -77,11 +79,11 @@ static int __init mipi_cmd_ILI9487_hvga_pt_init(void)
 	pinfo.mipi.vc = 0;
 	pinfo.mipi.rgb_swap = DSI_RGB_SWAP_RGB;
 	pinfo.mipi.data_lane0 = TRUE;
-	pinfo.mipi.data_lane1 = TRUE;
+	pinfo.mipi.data_lane1 = FALSE;
 	pinfo.mipi.data_lane2 = FALSE;
 	pinfo.mipi.data_lane3 = FALSE;
-	pinfo.mipi.t_clk_post = 0x22;
-	pinfo.mipi.t_clk_pre = 0x3f;
+	pinfo.mipi.t_clk_post = 0x21;
+	pinfo.mipi.t_clk_pre = 0x24;
 	pinfo.mipi.stream = 0; /* dma_p */
 	pinfo.mipi.mdp_trigger = DSI_CMD_TRIGGER_SW_TE;
 	pinfo.mipi.dma_trigger = DSI_CMD_TRIGGER_SW;
