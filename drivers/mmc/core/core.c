@@ -1836,7 +1836,6 @@ void mmc_stop_host(struct mmc_host *host)
 
 		mmc_claim_host(host);
 		mmc_detach_bus(host);
-		mmc_power_off(host);
 		mmc_release_host(host);
 		mmc_bus_put(host);
 		return;
@@ -2083,7 +2082,6 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 			host->bus_ops->remove(host);
 
 		mmc_detach_bus(host);
-		mmc_power_off(host);
 		mmc_release_host(host);
 		host->pm_flags = 0;
 		break;
@@ -2122,14 +2120,7 @@ void mmc_set_embedded_sdio_data(struct mmc_host *host,
 
 EXPORT_SYMBOL(mmc_set_embedded_sdio_data);
 #endif
-void power_off_on_host(struct mmc_host *host)
-{
-	mmc_claim_host(host);
-	mmc_power_off(host);
-	msleep(1000);
-	mmc_power_up(host);
-	mmc_release_host(host);
-}
+
 static int __init mmc_init(void)
 {
 	int ret;

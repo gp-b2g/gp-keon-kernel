@@ -104,8 +104,6 @@ struct mmc_blk_data {
 	struct device_attribute force_ro;
 };
 
-void power_off_on_host(struct mmc_host *host);
-
 static DEFINE_MUTEX(open_lock);
 
 module_param(perdev_minors, int, 0444);
@@ -824,7 +822,6 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 	struct mmc_card *card = md->queue.card;
 	struct mmc_blk_request brq;
 	int ret = 1, disable_multi = 0, retry = 0;
-	int sd_in_programm_state = 0;
 
 	/*
 	 * Reliable writes are used to implement Forced Unit Access and
@@ -993,7 +990,6 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 		 */
 		if (!mmc_host_is_spi(card->host) && rq_data_dir(req) != READ) {
 			u32 status;
-			unsigned long last_jiffies = jiffies;
 			do {
 				int err = get_card_status(card, &status, 5);
 				if (err) {
@@ -1006,14 +1002,6 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 				 * so make sure to check both the busy
 				 * indication and the card state.
 				 */
-				if(time_after(jiffies, last_jiffies + 10 * HZ)) {
-
-					printk(KERN_ERR "rms:%s: card in programm state: %ld jiffies\n",
-					       req->rq_disk->disk_name,
-					       jiffies - last_jiffies);
-					sd_in_programm_state = 1;
-					goto cmd_err;
-				}
 			} while (!(status & R1_READY_FOR_DATA) ||
 				 (R1_CURRENT_STATE(status) == R1_STATE_PRG));
 		}
@@ -1089,9 +1077,7 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 	while (ret)
 		ret = __blk_end_request(req, -EIO, blk_rq_cur_bytes(req));
 	spin_unlock_irq(&md->lock);
-	if (sd_in_programm_state && mmc_card_sd(card)) {
-		power_off_on_host(card->host);
-	}
+
 	return 0;
 }
 
