@@ -136,7 +136,20 @@ static void mipi_dsi_pclk_ctrl(struct dsi_clk_desc *clk, int clk_en)
 
 static void mipi_dsi_calibration(void)
 {
+	uint32 data;
+
+	MIPI_OUTP(MIPI_DSI_BASE + 0xf4, 0x0000ff11); /* cal_ctrl */
 	MIPI_OUTP(MIPI_DSI_BASE + 0xf8, 0x00a105a1); /* cal_hw_ctrl */
+	MIPI_OUTP(MIPI_DSI_BASE + 0xf0, 0x01); /* cal_hw_trigger */
+
+	while (1) {
+		data = MIPI_INP(MIPI_DSI_BASE + 0xfc); /* cal_status */
+		if ((data & 0x10000000) == 0)
+			break;
+
+		udelay(10);
+	}
+
 }
 
 #define PREF_DIV_RATIO 19
@@ -238,8 +251,11 @@ void mipi_dsi_phy_init(int panel_ndx, struct msm_panel_info const *panel_info,
 	int i, off;
 
 	MIPI_OUTP(MIPI_DSI_BASE + 0x128, 0x0001);/* start phy sw reset */
-	msleep(100);
+	wmb();
+	usleep(1000);
 	MIPI_OUTP(MIPI_DSI_BASE + 0x128, 0x0000);/* end phy w reset */
+	wmb();
+	usleep(1000);
 	MIPI_OUTP(MIPI_DSI_BASE + 0x2cc, 0x0003);/* regulator_ctrl_0 */
 	MIPI_OUTP(MIPI_DSI_BASE + 0x2d0, 0x0001);/* regulator_ctrl_1 */
 	MIPI_OUTP(MIPI_DSI_BASE + 0x2d4, 0x0001);/* regulator_ctrl_2 */

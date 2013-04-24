@@ -792,11 +792,6 @@ void mipi_dsi_host_init(struct mipi_panel_info *pinfo)
 	uint32 dsi_ctrl, intr_ctrl;
 	uint32 data;
 
-	if (mdp_rev > MDP_REV_41 || mdp_rev == MDP_REV_303)
-		pinfo->rgb_swap = DSI_RGB_SWAP_RGB;
-	else
-		pinfo->rgb_swap = DSI_RGB_SWAP_BGR;
-
 	if (pinfo->mode == DSI_VIDEO_MODE) {
 		data = 0;
 		if (pinfo->pulse_mode_hsa_he)
@@ -815,6 +810,11 @@ void mipi_dsi_host_init(struct mipi_panel_info *pinfo)
 		data |= ((pinfo->dst_format & 0x03) << 4); /* 2 bits */
 		data |= (pinfo->vc & 0x03);
 		MIPI_OUTP(MIPI_DSI_BASE + 0x000c, data);
+
+		if (mdp_rev > MDP_REV_41 || mdp_rev == MDP_REV_303)
+			pinfo->rgb_swap = DSI_RGB_SWAP_RGB;
+		else
+			pinfo->rgb_swap = DSI_RGB_SWAP_BGR;
 
 		data = 0;
 		data |= ((pinfo->rgb_swap & 0x07) << 12);
@@ -1013,7 +1013,10 @@ void mipi_dsi_mdp_busy_wait(struct msm_fb_data_type *mfd)
 		/* wait until DMA finishes the current job */
 		pr_debug("%s: pending pid=%d\n",
 				__func__, current->pid);
-		wait_for_completion(&dsi_mdp_comp);
+		if(!wait_for_completion_timeout(&dsi_mdp_comp, 20*HZ))	{
+			printk(KERN_INFO "[DISPLAY] %s: Wait for dsi_mdp_comp timeout\n", __func__);
+			complete(&dsi_mdp_comp);
+		}
 	}
 	pr_debug("%s: done pid=%d\n",
 				__func__, current->pid);
@@ -1347,7 +1350,8 @@ int mipi_dsi_cmd_dma_tx(struct dsi_buf *tp)
 	MIPI_OUTP(MIPI_DSI_BASE + 0x08c, 0x01);	/* trigger */
 	wmb();
 
-	wait_for_completion(&dsi_dma_comp);
+	/* Set timeout to avoid blocking MDP update */
+	wait_for_completion_timeout(&dsi_dma_comp, msecs_to_jiffies(30));
 
 	dma_unmap_single(&dsi_dev, tp->dmap, len, DMA_TO_DEVICE);
 	tp->dmap = 0;
@@ -1493,9 +1497,9 @@ irqreturn_t mipi_dsi_isr(int irq, void *ptr)
 		mipi_dsi_mdp_stat_inc(STAT_DSI_MDP);
 		spin_lock(&dsi_mdp_lock);
 		dsi_mdp_busy = FALSE;
+		mipi_dsi_disable_irq_nosync();
 		spin_unlock(&dsi_mdp_lock);
 		complete(&dsi_mdp_comp);
-		mipi_dsi_disable_irq_nosync();
 		mipi_dsi_post_kickoff_action();
 	}
 

@@ -19,12 +19,11 @@
 static struct msm_panel_info pinfo;
 
 static struct mipi_dsi_phy_ctrl dsi_cmd_mode_phy_db = {
-	/* DSI_BIT_CLK at 293MHz, 1 lane, RGB888, Tclk_trail, Tclk_prepare+Tclk_zero */
 	/* regulator */
-	{0x03, 0x01, 0x01, 0x00},
-	/* timing	*/
-	{0x47, 0x16, 0x0f, 0x00, 0x2a, 0x20, 0x16,
-	0x17, 0x0e, 0x03, 0x04},
+	{0x03, 0x0a, 0x04, 0x01, 0x20},
+	/* timing */
+	{0xfc, 0xc4, 0xd5, 0x00, 0xc6, 0xc0, 0x8a, 0x88,
+	0xa4, 0x93, 0x03, 0x04},
 	/* phy ctrl */
 	{0x7f, 0x00, 0x00, 0x00},
 	/* strength */
@@ -61,16 +60,17 @@ static int __init mipi_cmd_ILI9487_hvga_pt_init(void)
 	pinfo.lcdc.border_clr = 0;	/* blk */
 	pinfo.lcdc.underflow_clr = 0xff;	/* blue */
 	pinfo.lcdc.hsync_skew = 0;
-	pinfo.bl_max = 32;
+	pinfo.bl_max = 20;
 	pinfo.bl_min = 0;
 	pinfo.fb_num = 2;
 
-	pinfo.clk_rate =293000000;
+	pinfo.clk_rate = 499000000;
+	pinfo.mipi.dsi_pclk_rate = 22300000;
+	pinfo.mipi.frame_rate = 62;
 
 #ifdef USE_HW_VSYNC
 	pinfo.lcd.vsync_enable = TRUE;
 	pinfo.lcd.hw_vsync_mode = TRUE;
-	pinfo.lcd.vsync_notifier_period = (10 * HZ); 
 #endif
 	pinfo.lcd.refx100 = 6150; /* adjust refx100 to prevent tearing */
 
@@ -79,7 +79,7 @@ static int __init mipi_cmd_ILI9487_hvga_pt_init(void)
 	pinfo.mipi.vc = 0;
 	pinfo.mipi.rgb_swap = DSI_RGB_SWAP_RGB;
 	pinfo.mipi.data_lane0 = TRUE;
-	pinfo.mipi.data_lane1 = FALSE;
+	pinfo.mipi.data_lane1 = TRUE;
 	pinfo.mipi.data_lane2 = FALSE;
 	pinfo.mipi.data_lane3 = FALSE;
 	pinfo.mipi.t_clk_post = 0x21;

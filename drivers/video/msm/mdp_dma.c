@@ -294,6 +294,7 @@ void	mdp3_dsi_cmd_dma_busy_wait(struct msm_fb_data_type *mfd)
 {
 	unsigned long flag;
 	int need_wait = 0;
+	int ret = 0;
 
 #ifdef DSI_CLK_CTRL
 	mod_timer(&dsi_clock_timer, jiffies + HZ); /* one second */
@@ -315,7 +316,9 @@ void	mdp3_dsi_cmd_dma_busy_wait(struct msm_fb_data_type *mfd)
 
 	if (need_wait) {
 		/* wait until DMA finishes the current job */
-		wait_for_completion(&mfd->dma->comp);
+		do {
+			ret = wait_for_completion_timeout(&mfd->dma->comp, msecs_to_jiffies(5000));
+		} while (ret <= 0);
 	}
 }
 #endif
@@ -478,6 +481,12 @@ static void mdp_dma2_update_sub(struct msm_fb_data_type *mfd)
 void mdp_dma2_update(struct msm_fb_data_type *mfd)
 #endif
 {
+	int ret;
+
+	if (!mfd) {
+		printk(KERN_ERR "%s: mfd is NULL\n", __func__);
+		return;
+	}
 	down(&mfd->dma->mutex);
 	if ((mfd) && (!mfd->dma->busy) && (mfd->panel_power_on)) {
 		down(&mfd->sem);
@@ -493,7 +502,13 @@ void mdp_dma2_update(struct msm_fb_data_type *mfd)
 		up(&mfd->sem);
 
 		/* wait until DMA finishes the current job */
-		wait_for_completion_killable(&mfd->dma->comp);
+		ret = wait_for_completion_killable_timeout(&mfd->dma->comp, msecs_to_jiffies(50));
+		if (ret <= 0) {
+			mfd->dma->busy = FALSE;
+			mdp_pipe_ctrl(MDP_DMA2_BLOCK, MDP_BLOCK_POWER_OFF, TRUE);
+			complete(&mfd->dma->comp);
+		}
+
 		mdp_disable_irq(MDP_DMA2_TERM);
 
 	/* signal if pan function is waiting for the update completion */

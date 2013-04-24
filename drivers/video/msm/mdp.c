@@ -57,7 +57,7 @@ struct completion mdp_ppp_comp;
 struct semaphore mdp_ppp_mutex;
 struct semaphore mdp_pipe_ctrl_mutex;
 
-unsigned long mdp_timer_duration = (HZ/20);   /* 50 msecond */
+unsigned long mdp_timer_duration = (HZ/3);   /* ~333 msecond */
 
 boolean mdp_ppp_waiting = FALSE;
 uint32 mdp_tv_underflow_cnt;
@@ -540,8 +540,8 @@ static int mdp_lut_update_lcdc(struct fb_info *info, struct fb_cmap *cmap)
 	}
 
 	/*mask off non LUT select bits*/
-	out = inpdw(MDP_BASE + 0x90070) & ~(0x1 << 10);
-	MDP_OUTP(MDP_BASE + 0x90070, (mdp_lut_i << 10) | out);
+	out = inpdw(MDP_BASE + 0x90070) & ~((0x1 << 10) | 0x7);
+	MDP_OUTP(MDP_BASE + 0x90070, (mdp_lut_i << 10) | 0x7 | out);
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 	mdp_lut_i = (mdp_lut_i + 1)%2;
 
@@ -554,9 +554,9 @@ static void mdp_lut_enable(void)
 	if (mdp_lut_push) {
 		mutex_lock(&mdp_lut_push_sem);
 		mdp_lut_push = 0;
-		out = inpdw(MDP_BASE + 0x90070) & ~(0x1 << 10);
+		out = inpdw(MDP_BASE + 0x90070) & ~((0x1 << 10) | 0x7);
 		MDP_OUTP(MDP_BASE + 0x90070,
-				(mdp_lut_push_i << 10) | out);
+				(mdp_lut_push_i << 10) | 0x7 | out);
 		mutex_unlock(&mdp_lut_push_sem);
 	}
 }
@@ -1156,7 +1156,7 @@ error:
 static int _mdp_copy_hist_data(struct mdp_histogram_data *hist,
 						struct mdp_hist_mgmt *mgmt)
 {
-	int ret;
+	int ret = 0;
 
 	if (hist->c0) {
 		ret = copy_to_user(hist->c0, mgmt->c0,
@@ -1365,7 +1365,7 @@ void mdp_pipe_kickoff(uint32 term, struct msm_fb_data_type *mfd)
 		INIT_COMPLETION(mdp_ppp_comp);
 		mdp_ppp_waiting = TRUE;
 		outpdw(MDP_BASE + 0x30, 0x1000);
-		wait_for_completion_killable(&mdp_ppp_comp);
+		wait_for_completion_killable_timeout(&mdp_ppp_comp, 5* HZ);
 		mdp_disable_irq(term);
 
 		if (mdp_debug[MDP_PPP_BLOCK]) {
@@ -1625,7 +1625,16 @@ void mdp_histogram_handle_isr(struct mdp_hist_mgmt *mgmt)
 		__mdp_histogram_kickoff(mgmt);
 
 	if (isr & INTR_HIST_DONE) {
-		queue_work(mdp_hist_wq, &mgmt->mdp_histogram_worker);
+		if ((waitqueue_active(&mgmt->mdp_hist_comp.wait))
+			 && (mgmt->hist != NULL)) {
+			if (!queue_work(mdp_hist_wq,
+						&mgmt->mdp_histogram_worker)) {
+				pr_err("%s %d- can't queue hist_read\n",
+							 __func__, mgmt->block);
+			}
+		} else {
+			__mdp_histogram_reset(mgmt);
+		}
 	}
 }
 

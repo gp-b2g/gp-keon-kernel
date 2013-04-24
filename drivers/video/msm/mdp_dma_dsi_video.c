@@ -244,6 +244,7 @@ void mdp_dsi_video_update(struct msm_fb_data_type *mfd)
 	int bpp;
 	unsigned long flag;
 	int irq_block = MDP_DMA2_TERM;
+	int ret;
 
 	if (!mfd->panel_power_on)
 		return;
@@ -269,7 +270,16 @@ void mdp_dsi_video_update(struct msm_fb_data_type *mfd)
 	outp32(MDP_INTR_ENABLE, mdp_intr_mask);
 
 	spin_unlock_irqrestore(&mdp_spin_lock, flag);
-	wait_for_completion_killable(&mfd->dma->comp);
+
+	ret = wait_for_completion_killable_timeout(&mfd->dma->comp, msecs_to_jiffies(50));
+	if (ret <= 0) {
+		// let's disable LCDC interrupt
+		mdp_intr_mask &= ~LCDC_FRAME_START;
+		outp32(MDP_INTR_ENABLE, mdp_intr_mask);
+		mfd->dma->waiting = FALSE;
+		complete(&mfd->dma->comp);
+	}
+
 	mdp_disable_irq(irq_block);
 	up(&mfd->dma->mutex);
 }
