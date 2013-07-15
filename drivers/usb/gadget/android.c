@@ -879,14 +879,19 @@ static int mass_storage_function_init(struct android_usb_function *f,
 	struct mass_storage_function_config *config;
 	struct fsg_common *common;
 	int err;
+	int i;
 
 	config = kzalloc(sizeof(struct mass_storage_function_config),
 								GFP_KERNEL);
 	if (!config)
 		return -ENOMEM;
 
-	config->fsg.nluns = 1;
-	config->fsg.luns[0].removable = 1;
+	config->fsg.nluns = 2;
+	for (i = 0; i < config->fsg.nluns; i++) {
+            config->fsg.luns[i].removable = 1;
+            config->fsg.luns[i].nofua = 1;
+			config->fsg.luns[i].cdrom = 0;
+        }
 
 	common = fsg_common_init(NULL, cdev, &config->fsg);
 	if (IS_ERR(common)) {
@@ -895,8 +900,11 @@ static int mass_storage_function_init(struct android_usb_function *f,
 	}
 
 	err = sysfs_create_link(&f->dev->kobj,
-				&common->luns[0].dev.kobj,
-				"lun");
+							&common->luns[0].dev.kobj,
+							"lun0");
+	err = sysfs_create_link(&f->dev->kobj, 
+							&common->luns[1].dev.kobj, 
+							"lun1");
 	if (err) {
 		fsg_common_release(&common->ref);
 		kfree(config);
@@ -1019,7 +1027,7 @@ static int android_init_functions(struct android_usb_function **functions,
 	struct device_attribute **attrs;
 	struct device_attribute *attr;
 	int err = 0;
-	int index = 0;
+	int index = 1; /* index 0 is for android0 device */
 
 	for (; (f = *functions++); index++) {
 		f->dev_name = kasprintf(GFP_KERNEL, "f_%s", f->name);
