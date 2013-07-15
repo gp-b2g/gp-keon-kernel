@@ -1,7 +1,7 @@
 /* drivers/video/msm/src/drv/mdp/mdp_ppp.c
  *
  * Copyright (C) 2007 Google Incorporated
- * Copyright (c) 2008-2009, 2012 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2008-2009, 2012 Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -1314,11 +1314,6 @@ void put_img(struct file *p_src_file)
 }
 
 
-
-
-
-
-
 static int mdp_ppp_blit_addr(struct fb_info *info, struct mdp_blit_req *req,
 	unsigned long srcp0_start, unsigned long srcp0_len,
 	unsigned long srcp1_start, unsigned long srcp1_len,
@@ -1361,6 +1356,7 @@ static int mdp_ppp_blit_addr(struct fb_info *info, struct mdp_blit_req *req,
 
 	iBuf.mdpImg.width = req->src.width;
 	iBuf.mdpImg.imgType = req->src.format;
+
 
 	iBuf.mdpImg.bmy_addr = (uint32 *) (srcp0_start + req->src.offset);
 	if (iBuf.mdpImg.imgType == MDP_Y_CBCR_H2V2_ADRENO)

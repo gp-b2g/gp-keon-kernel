@@ -168,9 +168,9 @@ static int mipi_dsi_on(struct platform_device *pdev)
 		mipi_dsi_pdata->dsi_power_save(1);
 
 	cont_splash_clk_ctrl();
-	local_bh_disable();
+	//local_bh_disable();
 	mipi_dsi_ahb_ctrl(1);
-	local_bh_enable();
+	//local_bh_enable();
 
 	clk_rate = mfd->fbi->var.pixclock;
 	clk_rate = min(clk_rate, mfd->panel_info.clk_max);
@@ -563,10 +563,9 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	if (rc)
 		goto mipi_dsi_probe_err;
 
-	if ((dsi_pclk_rate < 3300000) || (dsi_pclk_rate > 223000000)) {
-		pr_err("%s: Pixel clock not supported\n", __func__);
+	if ((dsi_pclk_rate < 3300000) || (dsi_pclk_rate > 223000000))
 		dsi_pclk_rate = 35000000;
-	}
+
 	mipi->dsi_pclk_rate = dsi_pclk_rate;
 
 	/*

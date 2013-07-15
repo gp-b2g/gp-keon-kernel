@@ -1013,7 +1013,7 @@ void mipi_dsi_mdp_busy_wait(struct msm_fb_data_type *mfd)
 		/* wait until DMA finishes the current job */
 		pr_debug("%s: pending pid=%d\n",
 				__func__, current->pid);
-		if(!wait_for_completion_timeout(&dsi_mdp_comp, 20*HZ))	{
+		if(!wait_for_completion_timeout(&dsi_mdp_comp, 50*HZ))	{
 			printk(KERN_INFO "[DISPLAY] %s: Wait for dsi_mdp_comp timeout\n", __func__);
 			complete(&dsi_mdp_comp);
 		}
@@ -1351,7 +1351,7 @@ int mipi_dsi_cmd_dma_tx(struct dsi_buf *tp)
 	wmb();
 
 	/* Set timeout to avoid blocking MDP update */
-	wait_for_completion_timeout(&dsi_dma_comp, msecs_to_jiffies(30));
+	wait_for_completion_timeout(&dsi_dma_comp, msecs_to_jiffies(10000));
 
 	dma_unmap_single(&dsi_dev, tp->dmap, len, DMA_TO_DEVICE);
 	tp->dmap = 0;
