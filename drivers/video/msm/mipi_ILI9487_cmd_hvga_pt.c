@@ -22,12 +22,12 @@ static struct mipi_dsi_phy_ctrl dsi_cmd_mode_phy_db = {
 	/* regulator */
 	{0x03, 0x0a, 0x04, 0x01, 0x20},
 	/* timing */
-	{0xfc, 0xc4, 0xd5, 0x00, 0xc6, 0xc0, 0x8a, 0x88,
-	0xa4, 0x93, 0x03, 0x04},
+	{0x47, 0x16, 0x0f, 0x00, 0x46, 0x20, 0x16,
+	0x17, 0x0e, 0x03, 0x04},
 	/* phy ctrl */
 	{0x7f, 0x00, 0x00, 0x00},
 	/* strength */
-	{0xee, 0x00, 0x06, 0x00},
+	{0xee, 0x02, 0x86, 0x00},
 	/* pll control */
 	{0x40, 0x9b, 0xb1, 0xda, 0x00, 0x50, 0x48, 0x63,
 	/* set to 1 lane */
@@ -51,8 +51,8 @@ static int __init mipi_cmd_ILI9487_hvga_pt_init(void)
 	pinfo.wait_cycle = 0;
 	pinfo.bpp = 24;
 	pinfo.lcdc.h_back_porch = 20;
-	pinfo.lcdc.h_front_porch = 40;
-	pinfo.lcdc.h_pulse_width = 4;
+	pinfo.lcdc.h_front_porch = 20;
+	pinfo.lcdc.h_pulse_width = 1;
 	pinfo.lcdc.v_back_porch = 8;
 	pinfo.lcdc.v_front_porch = 8;
 	pinfo.lcdc.v_pulse_width = 4;
@@ -64,7 +64,7 @@ static int __init mipi_cmd_ILI9487_hvga_pt_init(void)
 	pinfo.bl_min = 0;
 	pinfo.fb_num = 2;
 
-	pinfo.clk_rate = 499000000;
+	pinfo.clk_rate = 293000000;
 	pinfo.mipi.dsi_pclk_rate = 22300000;
 	pinfo.mipi.frame_rate = 62;
 
@@ -82,7 +82,7 @@ static int __init mipi_cmd_ILI9487_hvga_pt_init(void)
 	pinfo.mipi.data_lane1 = TRUE;
 	pinfo.mipi.data_lane2 = FALSE;
 	pinfo.mipi.data_lane3 = FALSE;
-	pinfo.mipi.t_clk_post = 0x21;
+	pinfo.mipi.t_clk_post = 0x1e;
 	pinfo.mipi.t_clk_pre = 0x24;
 	pinfo.mipi.stream = 0; /* dma_p */
 	pinfo.mipi.mdp_trigger = DSI_CMD_TRIGGER_SW_TE;
