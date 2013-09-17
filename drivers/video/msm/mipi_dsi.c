@@ -194,9 +194,9 @@ static int mipi_dsi_on(struct platform_device *pdev)
 
 	mipi_dsi_phy_init(0, &(mfd->panel_info), target_type);
 
-	local_bh_disable();
+	//local_bh_disable();
 	mipi_dsi_clk_enable();
-	local_bh_enable();
+	//local_bh_enable();
 
 	mipi  = &mfd->panel_info.mipi;
 	if (mfd->panel_info.type == MIPI_VIDEO_PANEL) {

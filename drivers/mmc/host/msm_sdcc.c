@@ -4830,10 +4830,7 @@ msmsdcc_probe(struct platform_device *pdev)
 	if (plat->nonremovable)
 		mmc->caps |= MMC_CAP_NONREMOVABLE;
 	mmc->caps |= MMC_CAP_SDIO_IRQ;
-    if (4 == host->pdev_id )
-	{
-        mmc->caps |= MMC_CAP_NEEDS_POLL;
-    }
+
 	if (plat->is_sdio_al_client)
 		mmc->pm_flags |= MMC_PM_IGNORE_PM_NOTIFY;
 

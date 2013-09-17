@@ -152,6 +152,11 @@ int mdp_lcdc_on(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	if (!(mfd->cont_splash_done)) {
+		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+		MDP_OUTP(MDP_BASE + timer_base, 0);
+	}
+
 	/* DMA register config */
 
 	dma_base = DMA_P_BASE;
@@ -314,7 +319,7 @@ int mdp_lcdc_off(struct platform_device *pdev)
 	ret = panel_next_off(pdev);
 
 	/* delay to make sure the last frame finishes */
-	msleep(16);
+	mdelay(16);
 
 	return ret;
 }

@@ -24,6 +24,9 @@
 #include "sd.h"
 #include "sd_ops.h"
 
+//for prevent sd card shatter when it bigger than 32GB 
+#define SDHC_MAX_SIZE 1024*1024*32
+
 static const unsigned int tran_exp[] = {
 	10000,		100000,		1000000,	10000000,
 	0,		0,		0,		0
@@ -784,6 +787,20 @@ int mmc_sd_get_csd(struct mmc_host *host, struct mmc_card *card)
 	err = mmc_decode_csd(card);
 	if (err)
 		return err;
+	
+	// for prevent sd card shatter when it bigger than 32GB 
+	printk(KERN_INFO "SD size %d Mib\n",card->csd.capacity/1024/2);
+	if (card->csd.capacity > SDHC_MAX_SIZE*2){
+		printk(KERN_INFO "SD size %d > 32 GiB\n",card->csd.capacity/1024/1024/2);
+		return EINVAL;
+	}
+
+	/* Fix for some buggy card with CSD tacc == 0*/
+	if(!card->csd.tacc_ns)
+	{	
+		printk(KERN_INFO "This SDCARD CSD tacc is zero! Fix it for 100ms\n");
+		card->csd.tacc_ns = 100000 * 1000;
+	}
 
 	return 0;
 }
@@ -918,6 +935,9 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
+
+	/* The initialization should be done at 3.3 V I/O voltage. */
+	mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330, 0);
 
 	err = mmc_sd_get_cid(host, ocr, cid, &rocr);
 	if (err)
@@ -1093,6 +1113,7 @@ static void mmc_sd_detect(struct mmc_host *host)
 
 		mmc_claim_host(host);
 		mmc_detach_bus(host);
+		mmc_power_off(host);
 		mmc_release_host(host);
 	}
 }

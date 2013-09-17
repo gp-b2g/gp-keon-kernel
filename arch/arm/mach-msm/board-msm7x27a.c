@@ -1044,18 +1044,22 @@ static int mipi_dsi_panel_power(int on)
 			gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 0);
 			dsi_gpio_initialized = 2;
 		}
+		//if(dsi_gpio_initialized == 2){
+			gpio_set_value_cansleep(GPIO_LCDC_BL_EN, 0);
+			mdelay(120);
+		//}
 		
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 1);
-		msleep(1);
-		gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 0);
-		msleep(10);
-		gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 1);
-		msleep(120);
+		mdelay(120);
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 1);
 	}else{
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 0);
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 0);
+		mdelay(120);
+		gpio_set_value_cansleep(GPIO_LCDC_BL_EN, 0);
 	}
+
+	gpio_free(GPIO_LCDC_BRDG_RESET_N);
 
 	return rc;
 }

@@ -126,8 +126,8 @@ static struct dsi_cmd_desc ILI9487_cmd_display_on_cmds[] = {
 	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(ILI9487_command13), ILI9487_command13},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command14), ILI9487_command14},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(ILI9487_command15), ILI9487_command15},
-	{DTYPE_DCS_WRITE, 1, 0, 0, 120, sizeof(ILI9487_command17), ILI9487_command17},
-	{DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(ILI9487_command18), ILI9487_command18},
+	{DTYPE_DCS_WRITE, 1, 0, 0, 10, sizeof(ILI9487_command17), ILI9487_command17},
+	{DTYPE_DCS_WRITE, 1, 0, 0, 10, sizeof(ILI9487_command18), ILI9487_command18},
 	{DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(ILI9487_command19), ILI9487_command19},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(display_bringtness), display_bringtness},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(crtl_display), crtl_display},
@@ -175,7 +175,6 @@ static void mipi_ILI9487_set_backlight(struct msm_fb_data_type *mfd)
 	return;
 }
 
-// Cellon modify start, Zepeng Wu, 2013/02/25, for LCD
 static int mipi_ILI9487_lcd_on(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
@@ -197,7 +196,6 @@ static int mipi_ILI9487_lcd_on(struct platform_device *pdev)
 	printk("%s: Done\n", __func__);
 	return 0;
 }
-// Cellon modify end, Zepeng Wu, 2013/02/25, for LCD
 
 static int mipi_ILI9487_lcd_off(struct platform_device *pdev)
 {
