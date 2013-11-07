@@ -910,8 +910,6 @@ static void elan_ktf2k_ts_report_data(struct i2c_client *client, uint8_t *buf)
 	uint8_t idx;
 	int finger_num;
     static uint8_t button_state;
-	//Solve long press issues
-	static int old_x = 0;
 
 	// for 5 fingers	
 	if ((buf[0] == NORMAL_PKT) || (buf[0] == FIVE_FINGERS_PKT)){
@@ -951,15 +949,6 @@ static void elan_ktf2k_ts_report_data(struct i2c_client *client, uint8_t *buf)
 			            x = x*320/729;
 	                    y = y*480/1152;
 						if (!((x<=0) || (y<=0) || (x>=X_RESOLUTION) || (y>=Y_RESOLUTION))) {   
-							//Single touch							
-							if(num < 2){
-								//Solve long press issues
-								if (!(x < (old_x -3) || x > (old_x + 3)))
-									x = old_x;
-								else
-									old_x = x;
-							}
-
 							//Solve keyboard issues
 							if(x > X_RESOLUTION)
 								x = X_RESOLUTION;

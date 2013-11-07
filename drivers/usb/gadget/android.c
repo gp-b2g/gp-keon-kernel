@@ -886,12 +886,14 @@ static int mass_storage_function_init(struct android_usb_function *f,
 	if (!config)
 		return -ENOMEM;
 
-	config->fsg.nluns = 2;
+	config->fsg.nluns = 3;
 	for (i = 0; i < config->fsg.nluns; i++) {
             config->fsg.luns[i].removable = 1;
             config->fsg.luns[i].nofua = 1;
-			config->fsg.luns[i].cdrom = 0;
         }
+	config->fsg.luns[0].cdrom = 0;
+	config->fsg.luns[1].cdrom = 0;
+	config->fsg.luns[2].cdrom = 1;
 
 	common = fsg_common_init(NULL, cdev, &config->fsg);
 	if (IS_ERR(common)) {
@@ -900,11 +902,10 @@ static int mass_storage_function_init(struct android_usb_function *f,
 	}
 
 	err = sysfs_create_link(&f->dev->kobj,
-							&common->luns[0].dev.kobj,
-							"lun0");
-	err = sysfs_create_link(&f->dev->kobj, 
-							&common->luns[1].dev.kobj, 
-							"lun1");
+				&common->luns[0].dev.kobj,
+				"lun0");
+	err = sysfs_create_link(&f->dev->kobj, &common->luns[1].dev.kobj, "lun1");
+	err = sysfs_create_link(&f->dev->kobj, &common->luns[2].dev.kobj, "lun2");
 	if (err) {
 		fsg_common_release(&common->ref);
 		kfree(config);
@@ -1535,6 +1536,7 @@ static int __devinit android_probe(struct platform_device *pdev)
 
 static struct platform_driver android_platform_driver = {
 	.driver = { .name = "android_usb"},
+	.probe = android_probe,
 };
 
 static int __init init(void)

@@ -293,9 +293,6 @@ static ssize_t msm_fb_msm_fb_type(struct device *dev,
 	case MIPI_CMD_PANEL:
 		ret = snprintf(buf, PAGE_SIZE, "mipi dsi cmd panel\n");
 		break;
-	case WRITEBACK_PANEL:
-		ret = snprintf(buf, PAGE_SIZE, "writeback panel\n");
-		break;
 	default:
 		ret = snprintf(buf, PAGE_SIZE, "unknown panel\n");
 		break;
@@ -1385,10 +1382,7 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	ret = 0;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-
-	if (hdmi_prim_display ||
-	    (mfd->panel_info.type != DTV_PANEL &&
-	     mfd->panel_info.type != WRITEBACK_PANEL)) {
+	if (mfd->panel_info.type != DTV_PANEL) {
 		mfd->early_suspend.suspend = msmfb_early_suspend;
 		mfd->early_suspend.resume = msmfb_early_resume;
 		mfd->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB - 2;
@@ -3128,14 +3122,12 @@ static int msmfb_notify_update(struct fb_info *info, unsigned long *argp)
 
 	if (notify == NOTIFY_UPDATE_START) {
 		INIT_COMPLETION(mfd->msmfb_update_notify);
-		ret = wait_for_completion_interruptible_timeout(
-		&mfd->msmfb_update_notify, 4*HZ);
+		wait_for_completion_interruptible(&mfd->msmfb_update_notify);
 	} else {
 		INIT_COMPLETION(mfd->msmfb_no_update_notify);
-		ret = wait_for_completion_interruptible_timeout(
-		&mfd->msmfb_no_update_notify, 4*HZ);
+		wait_for_completion_interruptible(&mfd->msmfb_no_update_notify);
 	}
-	return (ret > 0) ? 0 : -1;
+	return 0;
 }
 
 static int msmfb_handle_pp_ioctl(struct msmfb_mdp_pp *pp_ptr)
@@ -3644,7 +3636,7 @@ struct platform_device *msm_fb_add_device(struct platform_device *pdev)
 	mfd->fb_page = fb_num;
 	mfd->index = fbi_list_index;
 	mfd->mdp_fb_page_protection = MDP_FB_PAGE_PROTECTION_WRITECOMBINE;
-	mfd->iclient = NULL;
+	mfd->iclient = iclient;
 	/* link to the latest pdev */
 	mfd->pdev = this_dev;
 

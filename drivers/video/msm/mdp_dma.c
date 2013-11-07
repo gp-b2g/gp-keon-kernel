@@ -294,7 +294,6 @@ void	mdp3_dsi_cmd_dma_busy_wait(struct msm_fb_data_type *mfd)
 {
 	unsigned long flag;
 	int need_wait = 0;
-	int ret = 0;
 
 #ifdef DSI_CLK_CTRL
 	mod_timer(&dsi_clock_timer, jiffies + HZ); /* one second */
@@ -302,10 +301,8 @@ void	mdp3_dsi_cmd_dma_busy_wait(struct msm_fb_data_type *mfd)
 
 	spin_lock_irqsave(&mdp_spin_lock, flag);
 #ifdef DSI_CLK_CTRL
-	spin_lock_bh(&dsi_clk_lock);
 	if (mipi_dsi_clk_on == 0)
 		mipi_dsi_turn_on_clks();
-	spin_unlock_bh(&dsi_clk_lock);
 #endif
 
 	if (mfd->dma->busy == TRUE) {
@@ -318,9 +315,7 @@ void	mdp3_dsi_cmd_dma_busy_wait(struct msm_fb_data_type *mfd)
 
 	if (need_wait) {
 		/* wait until DMA finishes the current job */
-		do {
-			ret = wait_for_completion_timeout(&mfd->dma->comp, msecs_to_jiffies(10000));
-		} while (ret <= 0);
+		wait_for_completion(&mfd->dma->comp);
 	}
 }
 #endif
@@ -483,8 +478,7 @@ static void mdp_dma2_update_sub(struct msm_fb_data_type *mfd)
 void mdp_dma2_update(struct msm_fb_data_type *mfd)
 #endif
 {
-	int ret = 0;
-	unsigned long flag;
+	int ret;
 
 	if (!mfd) {
 		printk(KERN_ERR "%s: mfd is NULL\n", __func__);
@@ -496,18 +490,16 @@ void mdp_dma2_update(struct msm_fb_data_type *mfd)
 		mfd->ibuf_flushed = TRUE;
 		mdp_dma2_update_lcd(mfd);
 
-		spin_lock_irqsave(&mdp_spin_lock, flag);
 		mdp_enable_irq(MDP_DMA2_TERM);
 		mfd->dma->busy = TRUE;
 		INIT_COMPLETION(mfd->dma->comp);
 
-		spin_unlock_irqrestore(&mdp_spin_lock, flag);
 		/* schedule DMA to start */
 		mdp_dma_schedule(mfd, MDP_DMA2_TERM);
 		up(&mfd->sem);
 
 		/* wait until DMA finishes the current job */
-		ret = wait_for_completion_killable_timeout(&mfd->dma->comp, msecs_to_jiffies(500));
+		ret = wait_for_completion_killable_timeout(&mfd->dma->comp, msecs_to_jiffies(50));
 		if (ret <= 0) {
 			mfd->dma->busy = FALSE;
 			mdp_pipe_ctrl(MDP_DMA2_BLOCK, MDP_BLOCK_POWER_OFF, TRUE);

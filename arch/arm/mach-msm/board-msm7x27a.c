@@ -1044,11 +1044,8 @@ static int mipi_dsi_panel_power(int on)
 			gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 0);
 			dsi_gpio_initialized = 2;
 		}
-		//if(dsi_gpio_initialized == 2){
-			gpio_set_value_cansleep(GPIO_LCDC_BL_EN, 0);
-			mdelay(120);
-		//}
-		
+		gpio_set_value_cansleep(GPIO_LCDC_BL_EN, 0);
+		mdelay(120);
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_RESET_N, 1);
 		mdelay(120);
 		gpio_set_value_cansleep(GPIO_LCDC_BRDG_PD, 1);

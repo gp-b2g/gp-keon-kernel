@@ -83,7 +83,7 @@ void mdp_hw_vsync_clk_enable(struct msm_fb_data_type *mfd)
 		return;
 	mutex_lock(&vsync_clk_lock);
 	if (mfd->use_mdp_vsync) {
-		clk_prepare_enable(mdp_vsync_clk);
+		clk_enable(mdp_vsync_clk);
 		vsync_clk_status = 1;
 	}
 	mutex_unlock(&vsync_clk_lock);
@@ -95,7 +95,7 @@ void mdp_hw_vsync_clk_disable(struct msm_fb_data_type *mfd)
 		return;
 	mutex_lock(&vsync_clk_lock);
 	if (mfd->use_mdp_vsync) {
-		clk_disable_unprepare(mdp_vsync_clk);
+		clk_disable(mdp_vsync_clk);
 		vsync_clk_status = 0;
 	}
 	mutex_unlock(&vsync_clk_lock);

@@ -30,6 +30,7 @@ static struct clk *mdp_dsi_pclk;
 static struct clk *ahb_m_clk;
 static struct clk *ahb_s_clk;
 static struct clk *ebi1_dsi_clk;
+int mipi_dsi_clk_on;
 
 void mipi_dsi_clk_init(struct platform_device *pdev)
 {
@@ -91,18 +92,24 @@ void mipi_dsi_clk_init(struct platform_device *pdev)
 
 mipi_dsi_clk_err:
 	mipi_dsi_clk_deinit(NULL);
-
 }
 
 void mipi_dsi_clk_deinit(struct device *dev)
 {
-	clk_put(mdp_dsi_pclk);
-	clk_put(ahb_m_clk);
-	clk_put(ahb_s_clk);
-	clk_put(dsi_ref_clk);
-	clk_put(dsi_byte_div_clk);
-	clk_put(dsi_esc_clk);
-	clk_put(ebi1_dsi_clk);
+	if (mdp_dsi_pclk)
+		clk_put(mdp_dsi_pclk);
+	if (ahb_m_clk)
+		clk_put(ahb_m_clk);
+	if (ahb_s_clk)
+		clk_put(ahb_s_clk);
+	if (dsi_ref_clk)
+		clk_put(dsi_ref_clk);
+	if (dsi_byte_div_clk)
+		clk_put(dsi_byte_div_clk);
+	if (dsi_esc_clk)
+		clk_put(dsi_esc_clk);
+	if (ebi1_dsi_clk)
+		clk_put(ebi1_dsi_clk);
 }
 
 static void mipi_dsi_clk_ctrl(struct dsi_clk_desc *clk, int clk_en)
@@ -251,11 +258,8 @@ void mipi_dsi_phy_init(int panel_ndx, struct msm_panel_info const *panel_info,
 	int i, off;
 
 	MIPI_OUTP(MIPI_DSI_BASE + 0x128, 0x0001);/* start phy sw reset */
-	wmb();
-	usleep(1000);
+	msleep(100);
 	MIPI_OUTP(MIPI_DSI_BASE + 0x128, 0x0000);/* end phy w reset */
-	wmb();
-	usleep(1000);
 	MIPI_OUTP(MIPI_DSI_BASE + 0x2cc, 0x0003);/* regulator_ctrl_0 */
 	MIPI_OUTP(MIPI_DSI_BASE + 0x2d0, 0x0001);/* regulator_ctrl_1 */
 	MIPI_OUTP(MIPI_DSI_BASE + 0x2d4, 0x0001);/* regulator_ctrl_2 */
@@ -310,8 +314,52 @@ void mipi_dsi_phy_init(int panel_ndx, struct msm_panel_info const *panel_info,
 	wmb();
 }
 
-void cont_splash_clk_ctrl(void)
+void cont_splash_clk_ctrl(int enable)
 {
+	static int cont_splash_clks_enabled;
+	if (enable && !cont_splash_clks_enabled) {
+		clk_prepare_enable(dsi_ref_clk);
+		clk_prepare_enable(mdp_dsi_pclk);
+		clk_prepare_enable(dsi_byte_div_clk);
+		clk_prepare_enable(dsi_esc_clk);
+		clk_prepare_enable(dsi_pixel_clk);
+		clk_prepare_enable(dsi_clk);
+		cont_splash_clks_enabled = 1;
+	} else if (!enable && cont_splash_clks_enabled) {
+		clk_disable_unprepare(dsi_clk);
+		clk_disable_unprepare(dsi_pixel_clk);
+		clk_disable_unprepare(dsi_esc_clk);
+		clk_disable_unprepare(dsi_byte_div_clk);
+		clk_disable_unprepare(mdp_dsi_pclk);
+		clk_disable_unprepare(dsi_ref_clk);
+		cont_splash_clks_enabled = 0;
+	}
+}
+
+void mipi_dsi_prepare_clocks(void)
+{
+	clk_prepare(dsi_ref_clk);
+	clk_prepare(ahb_m_clk);
+	clk_prepare(ahb_s_clk);
+	clk_prepare(ebi1_dsi_clk);
+	clk_prepare(mdp_dsi_pclk);
+	clk_prepare(dsi_byte_div_clk);
+	clk_prepare(dsi_esc_clk);
+	clk_prepare(dsi_clk);
+	clk_prepare(dsi_pixel_clk);
+}
+
+void mipi_dsi_unprepare_clocks(void)
+{
+	clk_unprepare(dsi_esc_clk);
+	clk_unprepare(dsi_byte_div_clk);
+	clk_unprepare(mdp_dsi_pclk);
+	clk_unprepare(ebi1_dsi_clk);
+	clk_unprepare(ahb_m_clk);
+	clk_unprepare(ahb_s_clk);
+	clk_unprepare(dsi_ref_clk);
+	clk_unprepare(dsi_clk);
+	clk_unprepare(dsi_pixel_clk);
 }
 
 void mipi_dsi_ahb_ctrl(u32 enable)
@@ -425,9 +473,9 @@ void update_lane_config(struct msm_panel_info *pinfo)
 	struct mipi_dsi_phy_ctrl *pd;
 
 	pd = (pinfo->mipi).dsi_phy_db;
-	pinfo->mipi.data_lane1 = FALSE;
+	//pinfo->mipi.data_lane1 = FALSE;
 	pd->pll[10] |= 0x08;
-
+#if 0
 	pinfo->yres = 480;
 	pinfo->lcdc.h_back_porch = 15;
 	pinfo->lcdc.h_front_porch = 21;
@@ -435,5 +483,6 @@ void update_lane_config(struct msm_panel_info *pinfo)
 	pinfo->lcdc.v_back_porch = 50;
 	pinfo->lcdc.v_front_porch = 101;
 	pinfo->lcdc.v_pulse_width = 50;
+#endif
 }
 #endif
